@@ -1,0 +1,25 @@
+{
+  "name": "diagramming-whiteboard-desktop-application-electronjs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsriteshx/Diagramming-Whiteboard-Desktop-Application-ElectronJS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/itsriteshx/Diagramming-Whiteboard-Desktop-Application-ElectronJS/issues"
+  },
+  "homepage": "https://github.com/itsriteshx/Diagramming-Whiteboard-Desktop-Application-ElectronJS#readme",
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  }
+}
