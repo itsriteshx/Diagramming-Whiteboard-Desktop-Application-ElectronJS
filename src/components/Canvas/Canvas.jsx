@@ -1,336 +1,622 @@
-// src/components/Canvas/Canvas.jsx
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
-import { screenToCanvas } from '../../utils/coordinates';
 import { drawGrid, drawShape, drawSelectionBox } from '../../utils/renderer';
 
-// Shapes that are "containers" — click places them with a default size
 const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
 
-// Shapes that get constrained proportions (square / circle) on Shift
 const PROPORTIONAL_SHAPES = new Set([
   TOOLS.RECTANGLE, TOOLS.ELLIPSE, TOOLS.DIAMOND,
-  TOOLS.TRIANGLE,  TOOLS.HEXAGON, TOOLS.STAR,
-  TOOLS.PARALLELOGRAM,
+  TOOLS.TRIANGLE, TOOLS.HEXAGON, TOOLS.STAR, TOOLS.PARALLELOGRAM,
 ]);
 
-/**
- * 🌟 Excalidraw Interactive Canvas — Day 2 Update
- * + Shift-lock for perfect square/circle
- * + Click-to-place (no drag needed)
- * + 8-point selection gizmo (renderer)
- * + Smooth bezier pen strokes
- */
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+function getSelectionHandles(shape) {
+  if (!shape) return [];
+  const { x, y, width, height } = shape;
+
+  if (shape.type === 'arrow' || shape.type === 'line') {
+    return [
+      { id: 'start', x, y, cursor: 'crosshair' },
+      { id: 'end',   x: x + width, y: y + height, cursor: 'crosshair' },
+    ];
+  }
+
+  const padding = 8;
+  const minX = Math.min(x, x + width) - padding;
+  const minY = Math.min(y, y + height) - padding;
+  const w = Math.max(Math.abs(width) + padding * 2, 16);
+  const h = Math.max(Math.abs(height) + padding * 2, 16);
+
+  return [
+    { id: 'tl', x: minX,         y: minY,         cursor: 'nwse-resize' },
+    { id: 'tc', x: minX + w / 2, y: minY,         cursor: 'ns-resize'   },
+    { id: 'tr', x: minX + w,     y: minY,         cursor: 'nesw-resize' },
+    { id: 'mr', x: minX + w,     y: minY + h / 2, cursor: 'ew-resize'   },
+    { id: 'br', x: minX + w,     y: minY + h,     cursor: 'nwse-resize' },
+    { id: 'bc', x: minX + w / 2, y: minY + h,     cursor: 'ns-resize'   },
+    { id: 'bl', x: minX,         y: minY + h,     cursor: 'nesw-resize' },
+    { id: 'ml', x: minX,         y: minY + h / 2, cursor: 'ew-resize'   },
+  ];
+}
+
+function hitTestHandles(shape, worldX, worldY, zoom) {
+  if (!shape) return null;
+  const handles = getSelectionHandles(shape);
+  const threshold = Math.max(12 / zoom, 12);
+  for (const h of handles) {
+    const dist = Math.hypot(worldX - h.x, worldY - h.y);
+    if (dist <= threshold) return h;
+  }
+  return null;
+}
+
 export function Canvas({
-  shapes,
-  setShapes,
-  activeTool,
-  setActiveTool,
-  selectedId,
-  setSelectedId,
+  shapes, setShapes,
+  activeTool, setActiveTool,
+  selectedId, setSelectedId,
   currentStyle,
-  pan,
-  setPan,
-  zoom,
-  zoomAtPoint,
-  zoomIn,
-  zoomOut,
-  resetView,
+  pan, setPan,
+  zoom, zoomAtPoint, zoomIn, zoomOut, resetView,
   canvasBg,
-  undo,
-  redo,
-  canUndo,
-  canRedo,
+  undo, redo, canUndo, canRedo,
   isToolLocked,
 }) {
   const canvasRef = useRef(null);
-  const isInteracting  = useRef(false);
-  const isDragging     = useRef(false);   // true once mouse moves >4px
-  const dragStart      = useRef({ x: 0, y: 0 });
-  const isShiftHeld    = useRef(false);
+  const textareaRef = useRef(null);
 
-  const [currentShape, setCurrentShape]   = useState(null);
-  const [isSpacePressed, setIsSpacePressed] = useState(false);
+  const isDown = useRef(false);
+  const hasDragged = useRef(false);
+  const isShift = useRef(false);
+  const isSpace = useRef(false);
 
-  // ─── High-DPI Rendering Loop ────────────────────────────────────────────────
+  const dragMode = useRef(null);
+  const activeHandle = useRef(null);
+  const initialShape = useRef(null);
+  const dragWorldOrigin = useRef({ x: 0, y: 0 });
+  const dragScreenOrigin = useRef({ x: 0, y: 0 });
+
+  const [marquee, setMarquee] = useState(null);
+  const marqueeRef = useRef(null);
+  useEffect(() => { marqueeRef.current = marquee; }, [marquee]);
+
+  const [hoverCursor, setHoverCursor] = useState('default');
+
+  const R = useRef({
+    shapes, activeTool, selectedId, pan, zoom, currentStyle, isToolLocked,
+  });
+  useEffect(() => {
+    R.current = { shapes, activeTool, selectedId, pan, zoom, currentStyle, isToolLocked };
+  });
+
+  const [currentShape, setCurrentShape] = useState(null);
+  const currentShapeRef = useRef(null);
+  useEffect(() => { currentShapeRef.current = currentShape; }, [currentShape]);
+
+  const [isSpaceState, setIsSpaceState] = useState(false);
+
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [editingPos, setEditingPos] = useState(null);
+  const editingIdRef = useRef(null);
+  useEffect(() => { editingIdRef.current = editingId; }, [editingId]);
+
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-    const width  = canvas.width;
-    const height = canvas.height;
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = canvasBg?.color || '#ffffff';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    drawGrid(ctx, width, height, pan, zoom * dpr, canvasBg?.dotColor || '#e5e7eb');
+    drawGrid(ctx, canvas.width, canvas.height, pan, zoom * dpr, canvasBg?.dotColor || '#e5e7eb');
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, pan.x * dpr, pan.y * dpr);
 
     shapes.forEach((shape) => {
-      drawShape(ctx, shape);
+      const s = shape.id === editingId ? { ...shape, text: '' } : shape;
+      drawShape(ctx, s);
       if (shape.id === selectedId) drawSelectionBox(ctx, shape);
     });
 
     if (currentShape) drawShape(ctx, currentShape);
-  }, [shapes, currentShape, selectedId, pan, zoom, canvasBg]);
+
+    if (marquee && (marquee.width > 2 || marquee.height > 2)) {
+      ctx.save();
+      ctx.strokeStyle = '#6366f1';
+      ctx.fillStyle = 'rgba(99, 102, 241, 0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.fillRect(marquee.x, marquee.y, marquee.width, marquee.height);
+      ctx.strokeRect(marquee.x, marquee.y, marquee.width, marquee.height);
+      ctx.restore();
+    }
+  }, [shapes, currentShape, selectedId, pan, zoom, canvasBg, editingId, marquee]);
 
   useEffect(() => {
     let id = requestAnimationFrame(render);
     return () => cancelAnimationFrame(id);
   }, [render]);
 
-  // ─── Resize Observer ─────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const handleResize = () => {
-      const dpr  = window.devicePixelRatio || 1;
+    const resize = () => {
+      const dpr = window.devicePixelRatio || 1;
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width  = rect.width  * dpr;
+      canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-      render();
     };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [render]);
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
 
-  // ─── Keyboard Listeners ───────────────────────────────────────────────────────
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Shift') isShiftHeld.current = true;
+    const onDown = (e) => {
+      if (e.key === 'Shift') isShift.current = true;
       if (e.code === 'Space' && !e.repeat && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
-        setIsSpacePressed(true);
+        isSpace.current = true;
+        setIsSpaceState(true);
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
-        setShapes((prev) => prev.filter((s) => s.id !== selectedId));
-        setSelectedId(null);
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+        const selId = R.current.selectedId;
+        if (selId) {
+          setShapes(prev => prev.filter(s => s.id !== selId));
+          setSelectedId(null);
+        }
       }
     };
-    const handleKeyUp = (e) => {
-      if (e.key === 'Shift')   isShiftHeld.current = false;
-      if (e.code === 'Space')  setIsSpacePressed(false);
+    const onUp = (e) => {
+      if (e.key === 'Shift') isShift.current = false;
+      if (e.code === 'Space') { isSpace.current = false; setIsSpaceState(false); }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup',   handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup',   handleKeyUp);
-    };
-  }, [selectedId, setShapes, setSelectedId]);
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
+  }, [setShapes, setSelectedId]);
 
-  // ─── Hit Testing ──────────────────────────────────────────────────────────────
-  const findShapeAtPoint = useCallback((worldX, worldY) => {
+  useEffect(() => {
+    if (editingId && textareaRef.current) {
+      textareaRef.current.focus();
+      textareaRef.current.select();
+    }
+  }, [editingId]);
+
+  const getScreenPos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
+  };
+
+  const toWorld = (sx, sy) => {
+    const { pan, zoom } = R.current;
+    return { x: (sx - pan.x) / zoom, y: (sy - pan.y) / zoom };
+  };
+
+  const hitTest = (worldX, worldY) => {
+    const { shapes } = R.current;
     for (let i = shapes.length - 1; i >= 0; i--) {
       const s = shapes[i];
-      const minX = Math.min(s.x, s.x + s.width);
-      const maxX = Math.max(s.x, s.x + s.width);
-      const minY = Math.min(s.y, s.y + s.height);
-      const maxY = Math.max(s.y, s.y + s.height);
-      if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) return s;
+
+      if (s.type === 'arrow' || s.type === 'line') {
+        const d = distToSegment(worldX, worldY, s.x, s.y, s.x + s.width, s.y + s.height);
+        if (d <= 14) return s;
+        continue;
+      }
+
+      if (s.type === 'pen' && s.points && s.points.length > 0) {
+        for (let j = 0; j < s.points.length - 1; j++) {
+          if (distToSegment(worldX, worldY, s.points[j].x, s.points[j].y, s.points[j + 1].x, s.points[j + 1].y) <= 14) {
+            return s;
+          }
+        }
+        continue;
+      }
+
+      const pad = 8;
+      const minX = Math.min(s.x, s.x + s.width) - pad;
+      const maxX = Math.max(s.x, s.x + s.width) + pad;
+      const minY = Math.min(s.y, s.y + s.height) - pad;
+      const maxY = Math.max(s.y, s.y + s.height) + pad;
+      if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
+        return s;
+      }
     }
     return null;
-  }, [shapes]);
+  };
 
-  // ─── Mouse Down ──────────────────────────────────────────────────────────────
+  const commitEdit = useCallback(() => {
+    const id = editingIdRef.current;
+    if (!id) return;
+    setShapes(prev => prev.map(s => s.id === id ? { ...s, text: editingText } : s));
+    setEditingId(null);
+    setEditingText('');
+    setEditingPos(null);
+  }, [editingText, setShapes]);
+
   const handleMouseDown = (e) => {
+    if (editingIdRef.current) { commitEdit(); return; }
     if (e.button !== 0 && e.button !== 1) return;
-    const canvas = canvasRef.current;
-    const rect   = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
 
-    isInteracting.current = true;
-    isDragging.current    = false;
-    dragStart.current     = { x: screenX, y: screenY };
+    const { sx, sy } = getScreenPos(e);
+    isDown.current = true;
+    hasDragged.current = false;
+    dragScreenOrigin.current = { x: sx, y: sy };
 
-    if (isSpacePressed || activeTool === TOOLS.PAN || e.button === 1) return;
+    const { activeTool, selectedId, shapes, zoom } = R.current;
 
-    const world = screenToCanvas(screenX, screenY, pan, zoom);
+    if (isSpace.current || activeTool === TOOLS.PAN || e.button === 1) {
+      dragMode.current = 'pan';
+      return;
+    }
 
-    // Eraser
+    const world = toWorld(sx, sy);
+    dragWorldOrigin.current = { x: world.x, y: world.y };
+
     if (activeTool === TOOLS.ERASER) {
-      const target = findShapeAtPoint(world.x, world.y);
-      if (target) {
-        setShapes((prev) => prev.filter((s) => s.id !== target.id));
-        if (selectedId === target.id) setSelectedId(null);
+      const t = hitTest(world.x, world.y);
+      if (t) {
+        setShapes(prev => prev.filter(s => s.id !== t.id));
+        if (selectedId === t.id) setSelectedId(null);
       }
       return;
     }
 
-    // Select / Move
     if (activeTool === TOOLS.SELECT) {
-      const clicked = findShapeAtPoint(world.x, world.y);
-      if (clicked) {
-        setSelectedId(clicked.id);
-        dragStart.current = { x: world.x, y: world.y };
-      } else {
-        setSelectedId(null);
+      const selectedShape = shapes.find(s => s.id === selectedId);
+
+      if (selectedShape) {
+        const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
+        if (handle) {
+          dragMode.current = 'resize';
+          activeHandle.current = handle.id;
+          initialShape.current = { ...selectedShape };
+          return;
+        }
       }
+
+      const hit = hitTest(world.x, world.y);
+      if (hit) {
+        setSelectedId(hit.id);
+        dragMode.current = 'move';
+        initialShape.current = { ...hit };
+        return;
+      }
+
+      setSelectedId(null);
+      dragMode.current = 'marquee';
+      setMarquee({ x: world.x, y: world.y, width: 0, height: 0 });
       return;
     }
 
-    // Text Tool
     if (activeTool === TOOLS.TEXT) {
-      const textVal = prompt('Enter text:');
-      if (textVal) {
-        const shape = {
-          id: 'shape_' + Date.now(),
-          type: TOOLS.TEXT,
-          x: world.x, y: world.y,
-          width: 200, height: 30,
-          text: textVal,
-          ...currentStyle,
-        };
-        setShapes((prev) => [...prev, shape]);
-        setSelectedId(shape.id);
-        if (!isToolLocked) setActiveTool(TOOLS.SELECT);
-      }
-      isInteracting.current = false;
+      const newShape = {
+        id: 'shape_' + Date.now(),
+        type: TOOLS.TEXT,
+        x: world.x,
+        y: world.y,
+        width: 220,
+        height: 36,
+        text: '',
+        ...R.current.currentStyle,
+      };
+      setShapes(prev => [...prev, newShape]);
+      setSelectedId(newShape.id);
+      setEditingId(newShape.id);
+      setEditingText('');
+      setEditingPos({ left: sx, top: sy, width: 220, height: 36 });
+      if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
+      isDown.current = false;
       return;
     }
 
-    // Begin shape drawing
-    const newShapeId = 'shape_' + Date.now();
+    dragMode.current = 'draw';
     const base = {
-      id: newShapeId,
+      id: 'shape_' + Date.now(),
       type: activeTool,
-      x: world.x, y: world.y,
-      width: 0, height: 0,
-      ...currentStyle,
+      x: world.x,
+      y: world.y,
+      width: 0,
+      height: 0,
+      ...R.current.currentStyle,
     };
     if (activeTool === TOOLS.PEN) base.points = [{ x: world.x, y: world.y }];
     setCurrentShape(base);
   };
 
-  // ─── Mouse Move ───────────────────────────────────────────────────────────────
   const handleMouseMove = (e) => {
-    if (!isInteracting.current) return;
-    const canvas = canvasRef.current;
-    const rect   = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
+    const { sx, sy } = getScreenPos(e);
+    const world = toWorld(sx, sy);
+    const { activeTool, selectedId, shapes, zoom } = R.current;
 
-    const dx = screenX - dragStart.current.x;
-    const dy = screenY - dragStart.current.y;
-
-    // Mark as true drag once we move > 4px
-    if (!isDragging.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-      isDragging.current = true;
-    }
-
-    // Viewport Pan
-    if (isSpacePressed || activeTool === TOOLS.PAN || e.buttons === 4) {
-      setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      dragStart.current = { x: screenX, y: screenY };
-      return;
-    }
-
-    const world = screenToCanvas(screenX, screenY, pan, zoom);
-
-    // Eraser drag
-    if (activeTool === TOOLS.ERASER) {
-      const target = findShapeAtPoint(world.x, world.y);
-      if (target) {
-        setShapes((prev) => prev.filter((s) => s.id !== target.id));
-        if (selectedId === target.id) setSelectedId(null);
+    if (!isDown.current) {
+      if (isSpace.current || activeTool === TOOLS.PAN) {
+        setHoverCursor('grab');
+      } else if (activeTool === TOOLS.SELECT) {
+        const selectedShape = shapes.find(s => s.id === selectedId);
+        if (selectedShape) {
+          const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
+          if (handle) {
+            setHoverCursor(handle.cursor);
+            return;
+          }
+          const hit = hitTest(world.x, world.y);
+          if (hit && hit.id === selectedId) {
+            setHoverCursor('move');
+            return;
+          }
+        }
+        const hitAny = hitTest(world.x, world.y);
+        setHoverCursor(hitAny ? 'pointer' : 'default');
+      } else if (activeTool === TOOLS.ERASER) {
+        setHoverCursor('not-allowed');
+      } else {
+        setHoverCursor('crosshair');
       }
       return;
     }
 
-    // Move selected shape
-    if (activeTool === TOOLS.SELECT && selectedId) {
-      const worldDx = world.x - dragStart.current.x;
-      const worldDy = world.y - dragStart.current.y;
-      setShapes((prev) =>
-        prev.map((s) => s.id === selectedId ? { ...s, x: s.x + worldDx, y: s.y + worldDy } : s)
-      );
-      dragStart.current = { x: world.x, y: world.y };
+    const screenDx = sx - dragScreenOrigin.current.x;
+    const screenDy = sy - dragScreenOrigin.current.y;
+
+    if (!hasDragged.current && (Math.abs(screenDx) > 3 || Math.abs(screenDy) > 3)) {
+      hasDragged.current = true;
+    }
+
+    if (dragMode.current === 'pan' || isSpace.current || activeTool === TOOLS.PAN || e.buttons === 4) {
+      setPan(prev => ({ x: prev.x + screenDx, y: prev.y + screenDy }));
+      dragScreenOrigin.current = { x: sx, y: sy };
       return;
     }
 
-    // Resize current in-progress shape
-    if (currentShape) {
-      if (currentShape.type === TOOLS.PEN) {
-        setCurrentShape((prev) => ({
-          ...prev,
-          points: [...prev.points, { x: world.x, y: world.y }],
-        }));
-      } else {
-        let newW = world.x - currentShape.x;
-        let newH = world.y - currentShape.y;
+    if (activeTool === TOOLS.ERASER) {
+      const t = hitTest(world.x, world.y);
+      if (t) {
+        setShapes(prev => prev.filter(s => s.id !== t.id));
+        if (selectedId === t.id) setSelectedId(null);
+      }
+      return;
+    }
 
-        // Shift-lock: constrain to square (equal sides)
-        if (isShiftHeld.current && PROPORTIONAL_SHAPES.has(currentShape.type)) {
+    if (dragMode.current === 'marquee') {
+      const x1 = Math.min(dragWorldOrigin.current.x, world.x);
+      const y1 = Math.min(dragWorldOrigin.current.y, world.y);
+      const x2 = Math.max(dragWorldOrigin.current.x, world.x);
+      const y2 = Math.max(dragWorldOrigin.current.y, world.y);
+      setMarquee({ x: x1, y: y1, width: x2 - x1, height: y2 - y1 });
+      return;
+    }
+
+    if (dragMode.current === 'resize' && selectedId && initialShape.current) {
+      const orig = initialShape.current;
+      const hId = activeHandle.current;
+      const dx = world.x - dragWorldOrigin.current.x;
+      const dy = world.y - dragWorldOrigin.current.y;
+
+      let newX = orig.x;
+      let newY = orig.y;
+      let newW = orig.width;
+      let newH = orig.height;
+
+      if (orig.type === 'arrow' || orig.type === 'line') {
+        if (hId === 'start') {
+          newX = orig.x + dx;
+          newY = orig.y + dy;
+          newW = orig.width - dx;
+          newH = orig.height - dy;
+        } else if (hId === 'end') {
+          newW = orig.width + dx;
+          newH = orig.height + dy;
+        }
+      } else {
+        switch (hId) {
+          case 'br':
+            newW = orig.width + dx;
+            newH = orig.height + dy;
+            break;
+          case 'tr':
+            newY = orig.y + dy;
+            newW = orig.width + dx;
+            newH = orig.height - dy;
+            break;
+          case 'tl':
+            newX = orig.x + dx;
+            newY = orig.y + dy;
+            newW = orig.width - dx;
+            newH = orig.height - dy;
+            break;
+          case 'bl':
+            newX = orig.x + dx;
+            newW = orig.width - dx;
+            newH = orig.height + dy;
+            break;
+          case 'mr':
+            newW = orig.width + dx;
+            break;
+          case 'ml':
+            newX = orig.x + dx;
+            newW = orig.width - dx;
+            break;
+          case 'bc':
+            newH = orig.height + dy;
+            break;
+          case 'tc':
+            newY = orig.y + dy;
+            newH = orig.height - dy;
+            break;
+          default:
+            break;
+        }
+
+        if (isShift.current && PROPORTIONAL_SHAPES.has(orig.type)) {
           const side = Math.max(Math.abs(newW), Math.abs(newH));
           newW = newW < 0 ? -side : side;
           newH = newH < 0 ? -side : side;
         }
+      }
 
-        // Shift-lock for arrows/lines: snap to 45° increments
-        if (isShiftHeld.current && (currentShape.type === TOOLS.ARROW || currentShape.type === TOOLS.LINE)) {
-          const angle  = Math.atan2(newH, newW);
-          const snap   = Math.PI / 4;
-          const snapped = Math.round(angle / snap) * snap;
-          const dist   = Math.sqrt(newW * newW + newH * newH);
-          newW = dist * Math.cos(snapped);
-          newH = dist * Math.sin(snapped);
+      setShapes(prev =>
+        prev.map(s => (s.id === selectedId ? { ...s, x: newX, y: newY, width: newW, height: newH } : s))
+      );
+      return;
+    }
+
+    if (dragMode.current === 'move' && selectedId && initialShape.current) {
+      const worldDx = world.x - dragWorldOrigin.current.x;
+      const worldDy = world.y - dragWorldOrigin.current.y;
+      setShapes(prev =>
+        prev.map(s => (s.id === selectedId ? { ...s, x: initialShape.current.x + worldDx, y: initialShape.current.y + worldDy } : s))
+      );
+      return;
+    }
+
+    const cs = currentShapeRef.current;
+    if (dragMode.current === 'draw' && cs) {
+      if (cs.type === TOOLS.PEN) {
+        setCurrentShape(prev => ({ ...prev, points: [...prev.points, { x: world.x, y: world.y }] }));
+      } else {
+        let newW = world.x - cs.x;
+        let newH = world.y - cs.y;
+
+        if (isShift.current && PROPORTIONAL_SHAPES.has(cs.type)) {
+          const side = Math.max(Math.abs(newW), Math.abs(newH));
+          newW = newW < 0 ? -side : side;
+          newH = newH < 0 ? -side : side;
+        }
+        if (isShift.current && (cs.type === TOOLS.ARROW || cs.type === TOOLS.LINE)) {
+          const dist = Math.sqrt(newW * newW + newH * newH);
+          const snap = Math.round(Math.atan2(newH, newW) / (Math.PI / 4)) * (Math.PI / 4);
+          newW = dist * Math.cos(snap);
+          newH = dist * Math.sin(snap);
         }
 
-        setCurrentShape((prev) => ({ ...prev, width: newW, height: newH }));
+        setCurrentShape(prev => ({ ...prev, width: newW, height: newH }));
       }
     }
   };
 
-  // ─── Mouse Up ─────────────────────────────────────────────────────────────────
   const handleMouseUp = () => {
-    isInteracting.current = false;
+    isDown.current = false;
 
-    if (currentShape) {
-      const isPen   = currentShape.type === TOOLS.PEN;
-      const isTiny  = !isPen && Math.abs(currentShape.width) < 5 && Math.abs(currentShape.height) < 5;
+    if (dragMode.current === 'marquee') {
+      const mq = marqueeRef.current;
+      if (mq && (mq.width > 4 || mq.height > 4)) {
+        const mx1 = mq.x;
+        const my1 = mq.y;
+        const mx2 = mq.x + mq.width;
+        const my2 = mq.y + mq.height;
 
-      if (isTiny && !isDragging.current) {
-        // ✨ Click-to-place: user clicked without dragging → use default size
-        const finalShape = {
-          ...currentShape,
-          width:  CLICK_TO_PLACE_SIZE.width,
-          height: CLICK_TO_PLACE_SIZE.height,
-          // Center the shape on the click point
-          x: currentShape.x - CLICK_TO_PLACE_SIZE.width  / 2,
-          y: currentShape.y - CLICK_TO_PLACE_SIZE.height / 2,
-        };
-        setShapes((prev) => [...prev, finalShape]);
-        setSelectedId(finalShape.id);
-        if (!isToolLocked) setActiveTool(TOOLS.SELECT);
-      } else if (!isTiny || isPen) {
-        setShapes((prev) => [...prev, currentShape]);
-        setSelectedId(currentShape.id);
-        if (!isToolLocked) setActiveTool(TOOLS.SELECT);
+        const currentShapes = R.current.shapes;
+        let foundId = null;
+        for (let i = currentShapes.length - 1; i >= 0; i--) {
+          const s = currentShapes[i];
+          const sx1 = Math.min(s.x, s.x + s.width);
+          const sy1 = Math.min(s.y, s.y + s.height);
+          const sx2 = Math.max(s.x, s.x + s.width);
+          const sy2 = Math.max(s.y, s.y + s.height);
+
+          if (mx1 <= sx2 && mx2 >= sx1 && my1 <= sy2 && my2 >= sy1) {
+            foundId = s.id;
+            break;
+          }
+        }
+        setSelectedId(foundId);
       }
-
-      setCurrentShape(null);
-      isDragging.current = false;
+      setMarquee(null);
     }
+
+    dragMode.current = null;
+    activeHandle.current = null;
+    initialShape.current = null;
+
+    const cs = currentShapeRef.current;
+    if (!cs) {
+      hasDragged.current = false;
+      return;
+    }
+
+    const isPen = cs.type === TOOLS.PEN;
+    const isTiny = !isPen && Math.abs(cs.width) < 5 && Math.abs(cs.height) < 5;
+
+    if (isTiny && !hasDragged.current) {
+      const placed = {
+        ...cs,
+        width: CLICK_TO_PLACE_SIZE.width,
+        height: CLICK_TO_PLACE_SIZE.height,
+        x: cs.x - CLICK_TO_PLACE_SIZE.width / 2,
+        y: cs.y - CLICK_TO_PLACE_SIZE.height / 2,
+      };
+      setShapes(prev => [...prev, placed]);
+      setSelectedId(placed.id);
+      if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
+    } else if (!isTiny || isPen) {
+      setShapes(prev => [...prev, cs]);
+      setSelectedId(cs.id);
+      if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
+    }
+
+    setCurrentShape(null);
+    hasDragged.current = false;
   };
 
-  // ─── Wheel Zoom ────────────────────────────────────────────────────────────────
   const handleWheel = (e) => {
     e.preventDefault();
-    const canvas = canvasRef.current;
-    const rect   = canvas.getBoundingClientRect();
-    zoomAtPoint(e.deltaY, e.clientX - rect.left, e.clientY - rect.top);
+    if (editingIdRef.current) commitEdit();
+    const { sx, sy } = getScreenPos(e);
+    zoomAtPoint(e.deltaY, sx, sy);
   };
 
-  // ─── Cursor ───────────────────────────────────────────────────────────────────
+  const handleDoubleClick = (e) => {
+    const { sx, sy } = getScreenPos(e);
+    const world = toWorld(sx, sy);
+    const hit = hitTest(world.x, world.y);
+    if (!hit || ['arrow','line','pen'].includes(hit.type)) return;
+
+    const { pan, zoom } = R.current;
+    const minX = Math.min(hit.x, hit.x + hit.width);
+    const minY = Math.min(hit.y, hit.y + hit.height);
+    const shW = Math.abs(hit.width);
+    const shH = Math.abs(hit.height);
+
+    setEditingId(hit.id);
+    setEditingText(hit.text || '');
+    setEditingPos({
+      left: minX * zoom + pan.x + 4,
+      top: minY * zoom + pan.y + 4,
+      width: Math.max(shW * zoom - 8, 80),
+      height: Math.max(shH * zoom - 8, 28),
+    });
+    setSelectedId(hit.id);
+  };
+
+  const handleTextareaKeyDown = (e) => {
+    if (e.key === 'Escape') { setEditingId(null); setEditingText(''); setEditingPos(null); return; }
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit(); }
+    e.stopPropagation();
+  };
+
   const getCursor = () => {
-    if (isSpacePressed || activeTool === TOOLS.PAN) return 'grab';
-    if (activeTool === TOOLS.SELECT)  return 'default';
-    if (activeTool === TOOLS.ERASER)  return 'not-allowed';
-    return 'crosshair';
+    if (isSpaceState || activeTool === TOOLS.PAN) return 'grab';
+    if (isDown.current && dragMode.current === 'resize' && activeHandle.current) {
+      return hoverCursor;
+    }
+    if (isDown.current && dragMode.current === 'move') {
+      return 'move';
+    }
+    if (isDown.current && dragMode.current === 'marquee') {
+      return 'crosshair';
+    }
+    return hoverCursor;
   };
 
   return (
@@ -343,67 +629,37 @@ export function Canvas({
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDoubleClick={handleDoubleClick}
         onWheel={handleWheel}
         className="block w-full h-full"
       />
 
-      {/* 🌟 Excalidraw Bottom-Left Zoom & Undo/Redo Pill */}
+      {editingId && editingPos && (
+        <div className="absolute z-50 pointer-events-none" style={{ left: editingPos.left, top: editingPos.top, width: editingPos.width, height: editingPos.height }}>
+          <textarea
+            ref={textareaRef}
+            value={editingText}
+            onChange={(e) => setEditingText(e.target.value)}
+            onBlur={commitEdit}
+            onKeyDown={handleTextareaKeyDown}
+            placeholder="Type here…"
+            className="pointer-events-auto w-full h-full resize-none outline-none bg-transparent border-none p-1 text-center leading-tight"
+            style={{ font: `600 ${currentStyle.fontSize || 15}px ${currentStyle.fontFamily || 'Inter, sans-serif'}`, color: currentStyle.strokeColor || '#1e1e1e', caretColor: '#6366f1', overflow: 'hidden' }}
+          />
+          <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-zinc-400 bg-white border border-zinc-200 rounded-lg px-2 py-0.5 shadow-sm select-none">
+            ↵ new line · ⌘↵ done · Esc cancel
+          </div>
+        </div>
+      )}
+
       <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/90 rounded-2xl p-1.5 backdrop-blur-md select-none">
-        <button
-          onClick={zoomOut}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer"
-          title="Zoom Out (-)"
-        >
-          <ZoomOut size={16} />
-        </button>
-
-        <button
-          onClick={resetView}
-          className="px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded-lg min-w-[52px] text-center transition-colors cursor-pointer"
-          title="Reset to 100%"
-        >
-          {Math.round(zoom * 100)}%
-        </button>
-
-        <button
-          onClick={zoomIn}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer"
-          title="Zoom In (+)"
-        >
-          <ZoomIn size={16} />
-        </button>
-
-        <button
-          onClick={resetView}
-          className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer"
-          title="Reset Origin"
-        >
-          <RotateCcw size={14} />
-        </button>
-
+        <button onClick={zoomOut} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer" title="Zoom Out (-)"><ZoomOut size={16} /></button>
+        <button onClick={resetView} className="px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded-lg min-w-[52px] text-center transition-colors cursor-pointer" title="Reset View">{Math.round(zoom * 100)}%</button>
+        <button onClick={zoomIn} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer" title="Zoom In (+)"><ZoomIn size={16} /></button>
+        <button onClick={resetView} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer" title="Reset Origin"><RotateCcw size={14} /></button>
         <div className="w-px h-4 bg-zinc-200 mx-1" />
-
-        <button
-          onClick={undo}
-          disabled={!canUndo}
-          className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${
-            canUndo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'
-          }`}
-          title="Undo (Ctrl+Z)"
-        >
-          <Undo2 size={16} />
-        </button>
-
-        <button
-          onClick={redo}
-          disabled={!canRedo}
-          className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${
-            canRedo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'
-          }`}
-          title="Redo (Ctrl+Y)"
-        >
-          <Redo2 size={16} />
-        </button>
+        <button onClick={undo} disabled={!canUndo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canUndo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Undo (Ctrl+Z)"><Undo2 size={16} /></button>
+        <button onClick={redo} disabled={!canRedo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canRedo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Redo (Ctrl+Y)"><Redo2 size={16} /></button>
       </div>
     </div>
   );

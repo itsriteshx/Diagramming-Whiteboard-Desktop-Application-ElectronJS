@@ -1,4 +1,3 @@
-// src/App.jsx
 import { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header/Header';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -9,7 +8,6 @@ import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
 
-// Initial Demo: Excalidraw + Eraser.io Hybrid Architecture
 const INITIAL_SHAPES = [
   {
     id: 'node_root',
@@ -19,7 +17,7 @@ const INITIAL_SHAPES = [
     width: 220,
     height: 60,
     strokeColor: '#1e1e1e',
-    fillColor: '#fecdd3', // Pastel Pink (like in screenshot)
+    fillColor: '#fecdd3',
     strokeWidth: 2,
     strokeStyle: 'solid',
     text: 'Types of ML / System',
@@ -34,7 +32,7 @@ const INITIAL_SHAPES = [
     width: 180,
     height: 60,
     strokeColor: '#1e1e1e',
-    fillColor: '#bbf7d0', // Pastel Green (like in screenshot)
+    fillColor: '#bbf7d0',
     strokeWidth: 2,
     strokeStyle: 'dashed',
     text: 'Supervised Learning',
@@ -64,7 +62,7 @@ const INITIAL_SHAPES = [
     width: 170,
     height: 100,
     strokeColor: '#1e1e1e',
-    fillColor: '#bfdbfe', // Pastel Blue
+    fillColor: '#bfdbfe',
     strokeWidth: 2,
     strokeStyle: 'solid',
     text: 'Training Dataset DB',
@@ -117,7 +115,6 @@ Visual diagrams along with structured documentation in a single desktop workspac
 `;
 
 export default function App() {
-  // Stack-based History (Undo / Redo)
   const {
     state: shapes,
     set: setShapes,
@@ -133,16 +130,12 @@ export default function App() {
   const [docName, setDocName] = useState('Machine Learning & Architecture');
   const [docsContent, setDocsContent] = useState(INITIAL_DOCS);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
-  const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]); // Clean White default
+  const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
-  // Infinite Canvas Viewport Hook (Pan & Zoom Math)
   const viewport = useCanvasViewport();
-
-  // Selected shape
   const selectedShape = shapes.find((s) => s.id === selectedId);
 
-  // Update properties of selected shape & sync to currentStyle
   const updateSelectedShape = (updates) => {
     if (!selectedId) return;
     setShapes((prev) =>
@@ -151,14 +144,12 @@ export default function App() {
     setCurrentStyle((prev) => ({ ...prev, ...updates }));
   };
 
-  // Delete selected shape
   const deleteSelectedShape = () => {
     if (!selectedId) return;
     setShapes((prev) => prev.filter((s) => s.id !== selectedId));
     setSelectedId(null);
   };
 
-  // Duplicate selected shape
   const duplicateSelectedShape = useCallback(() => {
     if (!selectedShape) return;
     const newShape = {
@@ -171,51 +162,41 @@ export default function App() {
     setSelectedId(newShape.id);
   }, [selectedShape, setShapes]);
 
-  // Bring to Front (Layers)
   const bringToFront = () => {
     if (!selectedShape) return;
     setShapes((prev) => [...prev.filter((s) => s.id !== selectedId), selectedShape]);
   };
 
-  // Send to Back (Layers)
   const sendToBack = () => {
     if (!selectedShape) return;
     setShapes((prev) => [selectedShape, ...prev.filter((s) => s.id !== selectedId)]);
   };
 
-  // ==========================================
-  // ⌨️ GLOBAL KEYBOARD SHORTCUTS
-  // ==========================================
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger when user is typing in text fields
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const modKey = isMac ? e.metaKey : e.ctrlKey;
 
-      // Undo: Ctrl+Z / Cmd+Z
       if (modKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
         return;
       }
 
-      // Redo: Ctrl+Y or Ctrl+Shift+Z
       if ((modKey && e.key.toLowerCase() === 'y') || (modKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         redo();
         return;
       }
 
-      // Duplicate: Ctrl+D / Cmd+D
       if (modKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         duplicateSelectedShape();
         return;
       }
 
-      // Tool selection shortcuts
       switch (e.key.toLowerCase()) {
         case 'v': setActiveTool(TOOLS.SELECT); break;
         case 'h': setActiveTool(TOOLS.PAN); break;
@@ -229,7 +210,6 @@ export default function App() {
         case 'e': setActiveTool(TOOLS.ERASER); break;
         case 'b': setActiveTool(TOOLS.DATABASE); break;
         case 'c': if (!modKey) setActiveTool(TOOLS.CLOUD); break;
-        // Day 2: New shapes
         case 'g': setActiveTool(TOOLS.TRIANGLE); break;
         case 'x': setActiveTool(TOOLS.HEXAGON); break;
         case 'q': setActiveTool(TOOLS.PARALLELOGRAM); break;
@@ -242,9 +222,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undo, redo, duplicateSelectedShape]);
 
-  // ==========================================
-  // 💾 NATIVE FILE I/O & EXPORT
-  // ==========================================
   const handleSave = async () => {
     const projectData = JSON.stringify(
       {
@@ -354,7 +331,7 @@ export default function App() {
     if (window.electronAPI?.copyImageToClipboard) {
       const res = await window.electronAPI.copyImageToClipboard(dataUrl);
       if (res?.success) {
-        alert('Diagram image copied to clipboard! You can paste (Cmd+V) directly into Slack, Docs, Keynote, etc.');
+        alert('Diagram image copied to clipboard!');
       }
     } else {
       canvas.toBlob((blob) => {
@@ -376,7 +353,6 @@ export default function App() {
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-white select-none">
-      {/* Excalidraw Style Header */}
       <Header
         docName={docName}
         setDocName={setDocName}
@@ -391,9 +367,7 @@ export default function App() {
         setCanvasBg={setCanvasBg}
       />
 
-      {/* Main Workspace Layout */}
       <div className="flex flex-1 relative overflow-hidden w-full h-[calc(100vh-48px)]">
-        {/* Eraser.io Split Docs Panel */}
         {isDocsOpen && (
           <DocsPanel
             docsContent={docsContent}
@@ -402,7 +376,6 @@ export default function App() {
           />
         )}
 
-        {/* Excalidraw Floating Pill Toolbar (Top Center) */}
         <Toolbar
           activeTool={activeTool}
           setActiveTool={setActiveTool}
@@ -410,7 +383,6 @@ export default function App() {
           setIsToolLocked={setIsToolLocked}
         />
 
-        {/* Excalidraw Left Properties Inspector */}
         <PropertiesPanel
           selectedShape={selectedShape}
           updateSelectedShape={updateSelectedShape}
@@ -421,7 +393,6 @@ export default function App() {
           onClose={() => setSelectedId(null)}
         />
 
-        {/* Excalidraw Infinite Canvas */}
         <Canvas
           shapes={shapes}
           setShapes={setShapes}

@@ -1,4 +1,3 @@
-// src/components/PropertiesPanel/PropertiesPanel.jsx
 import {
   Copy,
   Trash2,
@@ -8,12 +7,9 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   X,
-  Bold,
-  Italic,
 } from 'lucide-react';
 import { STROKE_COLORS, FILL_COLORS } from '../../constants/tools';
 
-// ── Section wrapper for consistent spacing ──────────────────────────────────
 function Section({ label, children }) {
   return (
     <div className="flex flex-col gap-2">
@@ -25,7 +21,6 @@ function Section({ label, children }) {
   );
 }
 
-// ── Segmented Control (pill group) ────────────────────────────────────────────
 function SegmentedControl({ options, value, onChange }) {
   return (
     <div className="grid bg-zinc-100 rounded-xl p-1 gap-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
@@ -51,7 +46,6 @@ function SegmentedControl({ options, value, onChange }) {
   );
 }
 
-// ── Color Swatch Row ──────────────────────────────────────────────────────────
 function ColorRow({ colors, selected, onChange, transparent }) {
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
@@ -85,10 +79,6 @@ function ColorRow({ colors, selected, onChange, transparent }) {
   );
 }
 
-/**
- * 🌟 Excalidraw-Style Properties Inspector — Redesigned for Day 2+
- * Clean sections, no overlap, proper font size controls, aligned layout.
- */
 export function PropertiesPanel({
   selectedShape,
   updateSelectedShape,
@@ -102,7 +92,6 @@ export function PropertiesPanel({
 
   const isLineType = selectedShape.type === 'arrow' || selectedShape.type === 'line';
   const isPenType  = selectedShape.type === 'pen';
-  const isTextType = selectedShape.type === 'text';
 
   const strokeColor  = selectedShape.strokeColor  || '#1e1e1e';
   const fillColor    = selectedShape.fillColor    || 'transparent';
@@ -116,8 +105,6 @@ export function PropertiesPanel({
 
   return (
     <div className="absolute left-4 top-[72px] z-20 w-[230px] max-h-[calc(100vh-100px)] overflow-y-auto bg-white text-zinc-800 shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200 rounded-2xl backdrop-blur-md select-none">
-
-      {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
         <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
           {typeName}
@@ -131,10 +118,7 @@ export function PropertiesPanel({
         </button>
       </div>
 
-      {/* ── Body ───────────────────────────────────────────────────────── */}
       <div className="flex flex-col gap-5 px-4 py-4">
-
-        {/* Label input (not for pen/arrow/line) */}
         {!isPenType && (
           <Section label="Label">
             <input
@@ -147,7 +131,6 @@ export function PropertiesPanel({
           </Section>
         )}
 
-        {/* Stroke color */}
         <Section label="Stroke">
           <ColorRow
             colors={STROKE_COLORS}
@@ -156,7 +139,6 @@ export function PropertiesPanel({
           />
         </Section>
 
-        {/* Fill color (not for lines / pen) */}
         {!isLineType && !isPenType && (
           <Section label="Fill">
             <ColorRow
@@ -168,7 +150,6 @@ export function PropertiesPanel({
           </Section>
         )}
 
-        {/* Stroke width */}
         <Section label="Stroke Width">
           <SegmentedControl
             value={strokeWidth}
@@ -181,7 +162,6 @@ export function PropertiesPanel({
           />
         </Section>
 
-        {/* Stroke style */}
         <Section label="Stroke Style">
           <SegmentedControl
             value={strokeStyle}
@@ -194,7 +174,6 @@ export function PropertiesPanel({
           />
         </Section>
 
-        {/* Font size + text align (not for lines / pen) */}
         {!isLineType && !isPenType && (
           <>
             <Section label="Font Size">
@@ -225,7 +204,6 @@ export function PropertiesPanel({
           </>
         )}
 
-        {/* Opacity */}
         <Section label={`Opacity — ${opacity}%`}>
           <input
             type="range"
@@ -238,7 +216,6 @@ export function PropertiesPanel({
           />
         </Section>
 
-        {/* Layers */}
         <Section label="Layers">
           <div className="grid grid-cols-2 gap-2">
             <button
@@ -259,7 +236,6 @@ export function PropertiesPanel({
         </Section>
       </div>
 
-      {/* ── Footer Actions ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-100">
         <button
           onClick={duplicateSelectedShape}
@@ -271,7 +247,7 @@ export function PropertiesPanel({
         <button
           onClick={deleteSelectedShape}
           className="w-9 h-9 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-xl transition-colors cursor-pointer"
-          title="Delete (Del / Backspace)"
+          title="Delete"
         >
           <Trash2 size={15} />
         </button>

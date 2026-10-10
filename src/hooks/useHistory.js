@@ -1,14 +1,5 @@
-// src/hooks/useHistory.js
 import { useState, useCallback } from 'react';
 
-/**
- * 🌟 VIVA CORE CONCEPT: Stack-Based Undo/Redo Engine
- * 
- * Data Structure: Two Stacks (pastStack, futureStack)
- * 1. Action perform hone par present state pastStack mein push hoti hai aur futureStack clear hota hai.
- * 2. Undo (Ctrl+Z): pastStack se pop karo, present ko futureStack mein dalo.
- * 3. Redo (Ctrl+Y): futureStack se pop karo, present ko pastStack mein dalo.
- */
 export function useHistory(initialPresent) {
   const [past, setPast] = useState([]);
   const [present, setPresent] = useState(initialPresent);
@@ -53,7 +44,6 @@ export function useHistory(initialPresent) {
             ? newPresentOrUpdater(currentPresent)
             : newPresentOrUpdater;
 
-        // Push current into past, clear future
         setPast((prevPast) => [...prevPast, currentPresent]);
         setFuture([]);
 

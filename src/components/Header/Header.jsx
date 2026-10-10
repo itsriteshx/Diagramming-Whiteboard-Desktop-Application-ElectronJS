@@ -1,4 +1,3 @@
-// src/components/Header/Header.jsx
 import { useState } from 'react';
 import {
   Menu,
@@ -13,9 +12,6 @@ import {
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
-/**
- * 🌟 Clean Excalidraw Minimalist Header
- */
 export function Header({
   docName,
   setDocName,
@@ -33,9 +29,7 @@ export function Header({
 
   return (
     <header className="relative z-30 h-12 px-4 flex items-center justify-between bg-white border-b border-zinc-200 select-none">
-      {/* Left Menu & Project Title */}
       <div className="flex items-center gap-2.5">
-        {/* Hamburger Menu Dropdown */}
         <div className="relative">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -52,7 +46,6 @@ export function Header({
                 <span>Canvas Background</span>
               </div>
 
-              {/* Background Color Options */}
               <div className="grid grid-cols-2 gap-1.5 p-1 mb-2">
                 {CANVAS_BACKGROUNDS.map((bg) => (
                   <button
@@ -117,7 +110,6 @@ export function Header({
           )}
         </div>
 
-        {/* Document Title (Editable) */}
         <input
           type="text"
           value={docName}
@@ -127,9 +119,7 @@ export function Header({
         />
       </div>
 
-      {/* Right Controls */}
       <div className="flex items-center gap-2">
-        {/* Copy PNG to System Clipboard (Native Electron Feature) */}
         <button
           onClick={onCopyImage}
           className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer"
@@ -139,7 +129,6 @@ export function Header({
           <span>Copy Image</span>
         </button>
 
-        {/* Eraser.io Split Docs Toggle */}
         <button
           onClick={() => setIsDocsOpen(!isDocsOpen)}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
@@ -147,7 +136,7 @@ export function Header({
               ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
               : 'text-zinc-600 hover:bg-zinc-100 border border-transparent'
           }`}
-          title="Toggle Architecture Notes (Eraser.io split view)"
+          title="Toggle Architecture Notes"
         >
           <BookOpen size={15} />
           <span>Docs</span>

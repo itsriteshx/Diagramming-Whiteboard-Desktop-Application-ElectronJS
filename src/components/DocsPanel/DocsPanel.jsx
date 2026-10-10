@@ -1,9 +1,5 @@
-// src/components/DocsPanel/DocsPanel.jsx
 import { BookOpen, X } from 'lucide-react';
 
-/**
- * 🌟 Eraser.io Split-Screen Technical Documentation Panel
- */
 export function DocsPanel({ docsContent, setDocsContent, onClose }) {
   return (
     <aside className="w-80 h-full bg-white/95 border-r border-zinc-200/90 flex flex-col z-10 shadow-lg backdrop-blur-md select-none">
