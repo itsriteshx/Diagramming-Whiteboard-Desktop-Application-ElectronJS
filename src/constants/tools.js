@@ -14,6 +14,11 @@ export const TOOLS = {
   // Extra Tech Architecture Tools (Eraser.io)
   DATABASE: 'database',
   CLOUD: 'cloud',
+  // Day 2: New Geometry Shapes
+  TRIANGLE: 'triangle',
+  HEXAGON: 'hexagon',
+  PARALLELOGRAM: 'parallelogram',
+  STAR: 'star',
 };
 
 // Excalidraw Color Palettes

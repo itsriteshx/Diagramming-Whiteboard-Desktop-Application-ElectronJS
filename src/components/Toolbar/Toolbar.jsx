@@ -14,12 +14,24 @@ import {
   Cloud,
   Lock,
   Unlock,
+  Triangle,
+  Hexagon,
+  Star,
 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
 
+// Custom SVG icon for Parallelogram (not in Lucide)
+function ParallelogramIcon({ size = 19, strokeWidth = 1.75 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 19 L9 5 L19 5 L15 19 Z" />
+    </svg>
+  );
+}
+
 /**
  * 🌟 Excalidraw Spacious & Clean Toolbar
- * Clean 38px buttons, clear icons, breathable layout without cluttering letter badges.
+ * Day 2: Added Triangle, Hexagon, Parallelogram, Star shapes.
  */
 export function Toolbar({
   activeTool,
@@ -30,27 +42,34 @@ export function Toolbar({
   const toolGroups = [
     // Group 1: Navigation
     [
-      { id: TOOLS.PAN, label: 'Hand / Pan (H)', icon: Hand },
-      { id: TOOLS.SELECT, label: 'Selection (V)', icon: MousePointer2 },
+      { id: TOOLS.PAN,    label: 'Hand / Pan (H)',  icon: Hand },
+      { id: TOOLS.SELECT, label: 'Selection (V)',    icon: MousePointer2 },
     ],
     // Group 2: Basic Shapes
     [
-      { id: TOOLS.RECTANGLE, label: 'Rectangle (R)', icon: Square },
-      { id: TOOLS.DIAMOND, label: 'Diamond (D)', icon: Diamond },
-      { id: TOOLS.ELLIPSE, label: 'Ellipse (O)', icon: Circle },
-      { id: TOOLS.ARROW, label: 'Arrow (A)', icon: MoveRight },
-      { id: TOOLS.LINE, label: 'Line (L)', icon: Minus },
+      { id: TOOLS.RECTANGLE, label: 'Rectangle (R)',  icon: Square },
+      { id: TOOLS.DIAMOND,   label: 'Diamond (D)',    icon: Diamond },
+      { id: TOOLS.ELLIPSE,   label: 'Ellipse (O)',    icon: Circle },
+      { id: TOOLS.ARROW,     label: 'Arrow (A)',      icon: MoveRight },
+      { id: TOOLS.LINE,      label: 'Line (L)',       icon: Minus },
     ],
-    // Group 3: Freehand & Text & Eraser
+    // Group 3: Day 2 — New Geometry Shapes
     [
-      { id: TOOLS.PEN, label: 'Draw / Pen (P)', icon: Pencil },
-      { id: TOOLS.TEXT, label: 'Text (T)', icon: Type },
-      { id: TOOLS.ERASER, label: 'Eraser (E)', icon: Eraser },
+      { id: TOOLS.TRIANGLE,      label: 'Triangle (G)',      icon: Triangle },
+      { id: TOOLS.HEXAGON,       label: 'Hexagon (X)',       icon: Hexagon },
+      { id: TOOLS.PARALLELOGRAM, label: 'Parallelogram (Q)', icon: ParallelogramIcon },
+      { id: TOOLS.STAR,          label: 'Star (K)',           icon: Star },
     ],
-    // Group 4: Architecture Elements (Eraser.io)
+    // Group 4: Freehand, Text & Eraser
     [
-      { id: TOOLS.DATABASE, label: 'Database Node (B)', icon: Database },
-      { id: TOOLS.CLOUD, label: 'Cloud Architecture (C)', icon: Cloud },
+      { id: TOOLS.PEN,    label: 'Draw / Pen (P)', icon: Pencil },
+      { id: TOOLS.TEXT,   label: 'Text (T)',        icon: Type },
+      { id: TOOLS.ERASER, label: 'Eraser (E)',      icon: Eraser },
+    ],
+    // Group 5: Architecture Elements (Eraser.io)
+    [
+      { id: TOOLS.DATABASE, label: 'Database Node (B)',    icon: Database },
+      { id: TOOLS.CLOUD,    label: 'Cloud Architecture (C)', icon: Cloud },
     ],
   ];
 
@@ -64,7 +83,7 @@ export function Toolbar({
             ? 'bg-indigo-50 text-indigo-600 font-medium'
             : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
         }`}
-        title={isToolLocked ? 'Tool is Locked (will not switch to Select after draw)' : 'Tool is Unlocked (click to keep tool active)'}
+        title={isToolLocked ? 'Tool Locked — stays active after draw' : 'Tool Unlocked — returns to Select after draw'}
       >
         {isToolLocked ? <Lock size={17} /> : <Unlock size={17} />}
       </button>

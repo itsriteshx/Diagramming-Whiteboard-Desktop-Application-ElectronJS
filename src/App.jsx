@@ -229,6 +229,11 @@ export default function App() {
         case 'e': setActiveTool(TOOLS.ERASER); break;
         case 'b': setActiveTool(TOOLS.DATABASE); break;
         case 'c': if (!modKey) setActiveTool(TOOLS.CLOUD); break;
+        // Day 2: New shapes
+        case 'g': setActiveTool(TOOLS.TRIANGLE); break;
+        case 'x': setActiveTool(TOOLS.HEXAGON); break;
+        case 'q': setActiveTool(TOOLS.PARALLELOGRAM); break;
+        case 'k': setActiveTool(TOOLS.STAR); break;
         default: break;
       }
     };

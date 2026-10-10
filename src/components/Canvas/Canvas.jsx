@@ -5,9 +5,22 @@ import { TOOLS } from '../../constants/tools';
 import { screenToCanvas } from '../../utils/coordinates';
 import { drawGrid, drawShape, drawSelectionBox } from '../../utils/renderer';
 
+// Shapes that are "containers" — click places them with a default size
+const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
+
+// Shapes that get constrained proportions (square / circle) on Shift
+const PROPORTIONAL_SHAPES = new Set([
+  TOOLS.RECTANGLE, TOOLS.ELLIPSE, TOOLS.DIAMOND,
+  TOOLS.TRIANGLE,  TOOLS.HEXAGON, TOOLS.STAR,
+  TOOLS.PARALLELOGRAM,
+]);
+
 /**
- * 🌟 Excalidraw Interactive Canvas
- * High-DPI 60FPS rendering, clean background, zoom, pan, undo/redo controls.
+ * 🌟 Excalidraw Interactive Canvas — Day 2 Update
+ * + Shift-lock for perfect square/circle
+ * + Click-to-place (no drag needed)
+ * + 8-point selection gizmo (renderer)
+ * + Smooth bezier pen strokes
  */
 export function Canvas({
   shapes,
@@ -32,129 +45,113 @@ export function Canvas({
   isToolLocked,
 }) {
   const canvasRef = useRef(null);
-  const isInteracting = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const [currentShape, setCurrentShape] = useState(null);
+  const isInteracting  = useRef(false);
+  const isDragging     = useRef(false);   // true once mouse moves >4px
+  const dragStart      = useRef({ x: 0, y: 0 });
+  const isShiftHeld    = useRef(false);
+
+  const [currentShape, setCurrentShape]   = useState(null);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
 
-  // High-DPI Canvas Rendering Loop
+  // ─── High-DPI Rendering Loop ────────────────────────────────────────────────
   const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
-
-    const width = canvas.width;
+    const width  = canvas.width;
     const height = canvas.height;
 
-    // Reset transform & clear screen with chosen canvas background (default white)
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = canvasBg?.color || '#ffffff';
     ctx.fillRect(0, 0, width, height);
 
-    // Dynamic grid dots
     drawGrid(ctx, width, height, pan, zoom * dpr, canvasBg?.dotColor || '#e5e7eb');
-
-    // Apply Pan & Zoom transformation matrix
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, pan.x * dpr, pan.y * dpr);
 
-    // Draw all completed shapes
     shapes.forEach((shape) => {
       drawShape(ctx, shape);
-      if (shape.id === selectedId) {
-        drawSelectionBox(ctx, shape);
-      }
+      if (shape.id === selectedId) drawSelectionBox(ctx, shape);
     });
 
-    // Draw current in-progress shape
-    if (currentShape) {
-      drawShape(ctx, currentShape);
-    }
+    if (currentShape) drawShape(ctx, currentShape);
   }, [shapes, currentShape, selectedId, pan, zoom, canvasBg]);
 
-  // Animation frame loop
   useEffect(() => {
-    let animationFrameId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationFrameId);
+    let id = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(id);
   }, [render]);
 
-  // Window resize handler
+  // ─── Resize Observer ─────────────────────────────────────────────────────────
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const handleResize = () => {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr  = window.devicePixelRatio || 1;
       const rect = canvas.parentElement.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
+      canvas.width  = rect.width  * dpr;
       canvas.height = rect.height * dpr;
       render();
     };
-
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [render]);
 
-  // Spacebar pan toggle & Delete key listener
+  // ─── Keyboard Listeners ───────────────────────────────────────────────────────
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.code === 'Space' && !e.repeat && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      if (e.key === 'Shift') isShiftHeld.current = true;
+      if (e.code === 'Space' && !e.repeat && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
         setIsSpacePressed(true);
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
         setShapes((prev) => prev.filter((s) => s.id !== selectedId));
         setSelectedId(null);
       }
     };
-
     const handleKeyUp = (e) => {
-      if (e.code === 'Space') {
-        setIsSpacePressed(false);
-      }
+      if (e.key === 'Shift')   isShiftHeld.current = false;
+      if (e.code === 'Space')  setIsSpacePressed(false);
     };
-
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('keyup',   handleKeyUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keyup',   handleKeyUp);
     };
   }, [selectedId, setShapes, setSelectedId]);
 
-  // Hit Testing: Find clicked shape
-  const findShapeAtPoint = (worldX, worldY) => {
+  // ─── Hit Testing ──────────────────────────────────────────────────────────────
+  const findShapeAtPoint = useCallback((worldX, worldY) => {
     for (let i = shapes.length - 1; i >= 0; i--) {
       const s = shapes[i];
       const minX = Math.min(s.x, s.x + s.width);
       const maxX = Math.max(s.x, s.x + s.width);
       const minY = Math.min(s.y, s.y + s.height);
       const maxY = Math.max(s.y, s.y + s.height);
-
-      if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
-        return s;
-      }
+      if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) return s;
     }
     return null;
-  };
+  }, [shapes]);
 
+  // ─── Mouse Down ──────────────────────────────────────────────────────────────
   const handleMouseDown = (e) => {
     if (e.button !== 0 && e.button !== 1) return;
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const rect   = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
 
     isInteracting.current = true;
-    dragStart.current = { x: screenX, y: screenY };
+    isDragging.current    = false;
+    dragStart.current     = { x: screenX, y: screenY };
 
-    if (isSpacePressed || activeTool === TOOLS.PAN || e.button === 1) {
-      return;
-    }
+    if (isSpacePressed || activeTool === TOOLS.PAN || e.button === 1) return;
 
     const world = screenToCanvas(screenX, screenY, pan, zoom);
 
-    // Eraser Tool
+    // Eraser
     if (activeTool === TOOLS.ERASER) {
       const target = findShapeAtPoint(world.x, world.y);
       if (target) {
@@ -164,11 +161,11 @@ export function Canvas({
       return;
     }
 
-    // Select Mode
+    // Select / Move
     if (activeTool === TOOLS.SELECT) {
-      const clickedShape = findShapeAtPoint(world.x, world.y);
-      if (clickedShape) {
-        setSelectedId(clickedShape.id);
+      const clicked = findShapeAtPoint(world.x, world.y);
+      if (clicked) {
+        setSelectedId(clicked.id);
         dragStart.current = { x: world.x, y: world.y };
       } else {
         setSelectedId(null);
@@ -176,58 +173,57 @@ export function Canvas({
       return;
     }
 
-    // Text Tool (Instant creation)
+    // Text Tool
     if (activeTool === TOOLS.TEXT) {
       const textVal = prompt('Enter text:');
       if (textVal) {
-        const textShape = {
+        const shape = {
           id: 'shape_' + Date.now(),
           type: TOOLS.TEXT,
-          x: world.x,
-          y: world.y,
-          width: 140,
-          height: 30,
+          x: world.x, y: world.y,
+          width: 200, height: 30,
           text: textVal,
           ...currentStyle,
         };
-        setShapes((prev) => [...prev, textShape]);
-        setSelectedId(textShape.id);
+        setShapes((prev) => [...prev, shape]);
+        setSelectedId(shape.id);
         if (!isToolLocked) setActiveTool(TOOLS.SELECT);
       }
       isInteracting.current = false;
       return;
     }
 
-    // New Shape Creation
+    // Begin shape drawing
     const newShapeId = 'shape_' + Date.now();
-    const baseProps = {
+    const base = {
       id: newShapeId,
       type: activeTool,
-      x: world.x,
-      y: world.y,
-      width: 0,
-      height: 0,
+      x: world.x, y: world.y,
+      width: 0, height: 0,
       ...currentStyle,
     };
-
-    if (activeTool === TOOLS.PEN) {
-      baseProps.points = [{ x: world.x, y: world.y }];
-    }
-
-    setCurrentShape(baseProps);
+    if (activeTool === TOOLS.PEN) base.points = [{ x: world.x, y: world.y }];
+    setCurrentShape(base);
   };
 
+  // ─── Mouse Move ───────────────────────────────────────────────────────────────
   const handleMouseMove = (e) => {
     if (!isInteracting.current) return;
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const rect   = canvas.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
 
+    const dx = screenX - dragStart.current.x;
+    const dy = screenY - dragStart.current.y;
+
+    // Mark as true drag once we move > 4px
+    if (!isDragging.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      isDragging.current = true;
+    }
+
     // Viewport Pan
     if (isSpacePressed || activeTool === TOOLS.PAN || e.buttons === 4) {
-      const dx = screenX - dragStart.current.x;
-      const dy = screenY - dragStart.current.y;
       setPan((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       dragStart.current = { x: screenX, y: screenY };
       return;
@@ -245,18 +241,18 @@ export function Canvas({
       return;
     }
 
-    // Move Selected Shape
+    // Move selected shape
     if (activeTool === TOOLS.SELECT && selectedId) {
-      const dx = world.x - dragStart.current.x;
-      const dy = world.y - dragStart.current.y;
+      const worldDx = world.x - dragStart.current.x;
+      const worldDy = world.y - dragStart.current.y;
       setShapes((prev) =>
-        prev.map((s) => (s.id === selectedId ? { ...s, x: s.x + dx, y: s.y + dy } : s))
+        prev.map((s) => s.id === selectedId ? { ...s, x: s.x + worldDx, y: s.y + worldDy } : s)
       );
       dragStart.current = { x: world.x, y: world.y };
       return;
     }
 
-    // Drag to resize new shape
+    // Resize current in-progress shape
     if (currentShape) {
       if (currentShape.type === TOOLS.PEN) {
         setCurrentShape((prev) => ({
@@ -264,56 +260,83 @@ export function Canvas({
           points: [...prev.points, { x: world.x, y: world.y }],
         }));
       } else {
-        setCurrentShape((prev) => ({
-          ...prev,
-          width: world.x - prev.x,
-          height: world.y - prev.y,
-        }));
+        let newW = world.x - currentShape.x;
+        let newH = world.y - currentShape.y;
+
+        // Shift-lock: constrain to square (equal sides)
+        if (isShiftHeld.current && PROPORTIONAL_SHAPES.has(currentShape.type)) {
+          const side = Math.max(Math.abs(newW), Math.abs(newH));
+          newW = newW < 0 ? -side : side;
+          newH = newH < 0 ? -side : side;
+        }
+
+        // Shift-lock for arrows/lines: snap to 45° increments
+        if (isShiftHeld.current && (currentShape.type === TOOLS.ARROW || currentShape.type === TOOLS.LINE)) {
+          const angle  = Math.atan2(newH, newW);
+          const snap   = Math.PI / 4;
+          const snapped = Math.round(angle / snap) * snap;
+          const dist   = Math.sqrt(newW * newW + newH * newH);
+          newW = dist * Math.cos(snapped);
+          newH = dist * Math.sin(snapped);
+        }
+
+        setCurrentShape((prev) => ({ ...prev, width: newW, height: newH }));
       }
     }
   };
 
+  // ─── Mouse Up ─────────────────────────────────────────────────────────────────
   const handleMouseUp = () => {
     isInteracting.current = false;
 
     if (currentShape) {
-      const isTiny =
-        currentShape.type !== TOOLS.PEN &&
-        Math.abs(currentShape.width) < 5 &&
-        Math.abs(currentShape.height) < 5;
+      const isPen   = currentShape.type === TOOLS.PEN;
+      const isTiny  = !isPen && Math.abs(currentShape.width) < 5 && Math.abs(currentShape.height) < 5;
 
-      if (!isTiny) {
+      if (isTiny && !isDragging.current) {
+        // ✨ Click-to-place: user clicked without dragging → use default size
+        const finalShape = {
+          ...currentShape,
+          width:  CLICK_TO_PLACE_SIZE.width,
+          height: CLICK_TO_PLACE_SIZE.height,
+          // Center the shape on the click point
+          x: currentShape.x - CLICK_TO_PLACE_SIZE.width  / 2,
+          y: currentShape.y - CLICK_TO_PLACE_SIZE.height / 2,
+        };
+        setShapes((prev) => [...prev, finalShape]);
+        setSelectedId(finalShape.id);
+        if (!isToolLocked) setActiveTool(TOOLS.SELECT);
+      } else if (!isTiny || isPen) {
         setShapes((prev) => [...prev, currentShape]);
         setSelectedId(currentShape.id);
-        if (!isToolLocked) {
-          setActiveTool(TOOLS.SELECT);
-        }
+        if (!isToolLocked) setActiveTool(TOOLS.SELECT);
       }
+
       setCurrentShape(null);
+      isDragging.current = false;
     }
   };
 
+  // ─── Wheel Zoom ────────────────────────────────────────────────────────────────
   const handleWheel = (e) => {
     e.preventDefault();
     const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const rect   = canvas.getBoundingClientRect();
     zoomAtPoint(e.deltaY, e.clientX - rect.left, e.clientY - rect.top);
   };
 
+  // ─── Cursor ───────────────────────────────────────────────────────────────────
   const getCursor = () => {
     if (isSpacePressed || activeTool === TOOLS.PAN) return 'grab';
-    if (activeTool === TOOLS.SELECT) return 'default';
-    if (activeTool === TOOLS.ERASER) return 'not-allowed';
+    if (activeTool === TOOLS.SELECT)  return 'default';
+    if (activeTool === TOOLS.ERASER)  return 'not-allowed';
     return 'crosshair';
   };
 
   return (
     <div
       className="relative w-full h-full overflow-hidden select-none"
-      style={{
-        cursor: getCursor(),
-        backgroundColor: canvasBg?.color || '#ffffff',
-      }}
+      style={{ cursor: getCursor(), backgroundColor: canvasBg?.color || '#ffffff' }}
     >
       <canvas
         ref={canvasRef}
@@ -360,14 +383,11 @@ export function Canvas({
 
         <div className="w-px h-4 bg-zinc-200 mx-1" />
 
-        {/* Undo & Redo */}
         <button
           onClick={undo}
           disabled={!canUndo}
           className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${
-            canUndo
-              ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95'
-              : 'text-zinc-300 cursor-not-allowed'
+            canUndo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'
           }`}
           title="Undo (Ctrl+Z)"
         >
@@ -378,9 +398,7 @@ export function Canvas({
           onClick={redo}
           disabled={!canRedo}
           className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${
-            canRedo
-              ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95'
-              : 'text-zinc-300 cursor-not-allowed'
+            canRedo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'
           }`}
           title="Redo (Ctrl+Y)"
         >
