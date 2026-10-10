@@ -8,11 +8,86 @@ import {
   ArrowUpToLine,
   ArrowDownToLine,
   X,
+  Bold,
+  Italic,
 } from 'lucide-react';
 import { STROKE_COLORS, FILL_COLORS } from '../../constants/tools';
 
+// ── Section wrapper for consistent spacing ──────────────────────────────────
+function Section({ label, children }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+// ── Segmented Control (pill group) ────────────────────────────────────────────
+function SegmentedControl({ options, value, onChange }) {
+  return (
+    <div className="grid bg-zinc-100 rounded-xl p-1 gap-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+      {options.map((opt) => {
+        const isActive = value === opt.val;
+        const Icon = opt.icon;
+        return (
+          <button
+            key={opt.val}
+            onClick={() => onChange(opt.val)}
+            title={opt.title}
+            className={`py-1.5 flex items-center justify-center rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+              isActive
+                ? 'bg-white shadow-sm text-indigo-600 font-semibold'
+                : 'text-zinc-500 hover:text-zinc-800'
+            }`}
+          >
+            {Icon ? <Icon size={14} /> : opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Color Swatch Row ──────────────────────────────────────────────────────────
+function ColorRow({ colors, selected, onChange, transparent }) {
+  return (
+    <div className="flex items-center gap-1.5 flex-wrap">
+      {colors.map((c) => {
+        const isTransparent = c === 'transparent';
+        const isSelected = selected === c;
+        return (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            title={isTransparent ? 'Transparent / None' : c}
+            className={`w-7 h-7 rounded-lg border transition-all cursor-pointer flex-shrink-0 relative overflow-hidden ${
+              isSelected
+                ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110'
+                : 'border-zinc-200 hover:scale-105'
+            }`}
+            style={{ backgroundColor: isTransparent ? '#fff' : c }}
+          >
+            {isTransparent && (
+              <>
+                <div className="absolute inset-0 bg-white" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-full h-0.5 bg-red-400 rotate-45" />
+                </div>
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /**
- * 🌟 Excalidraw Style Left Properties Inspector
+ * 🌟 Excalidraw-Style Properties Inspector — Redesigned for Day 2+
+ * Clean sections, no overlap, proper font size controls, aligned layout.
  */
 export function PropertiesPanel({
   selectedShape,
@@ -25,246 +100,180 @@ export function PropertiesPanel({
 }) {
   if (!selectedShape) return null;
 
-  const currentStroke = selectedShape.strokeColor || '#1e1e1e';
-  const currentFill = selectedShape.fillColor || 'transparent';
-  const currentWidth = selectedShape.strokeWidth || 2;
-  const currentStyle = selectedShape.strokeStyle || 'solid';
-  const currentOpacity = selectedShape.opacity !== undefined ? selectedShape.opacity : 100;
-  const currentFontSize = selectedShape.fontSize || 16;
-  const currentAlign = selectedShape.textAlign || 'center';
+  const isLineType = selectedShape.type === 'arrow' || selectedShape.type === 'line';
+  const isPenType  = selectedShape.type === 'pen';
+  const isTextType = selectedShape.type === 'text';
+
+  const strokeColor  = selectedShape.strokeColor  || '#1e1e1e';
+  const fillColor    = selectedShape.fillColor    || 'transparent';
+  const strokeWidth  = selectedShape.strokeWidth  || 2;
+  const strokeStyle  = selectedShape.strokeStyle  || 'solid';
+  const fontSize     = selectedShape.fontSize     || 16;
+  const textAlign    = selectedShape.textAlign    || 'center';
+  const opacity      = selectedShape.opacity !== undefined ? selectedShape.opacity : 100;
+
+  const typeName = selectedShape.type.charAt(0).toUpperCase() + selectedShape.type.slice(1);
 
   return (
-    <div className="absolute left-5 top-20 z-20 w-64 max-h-[calc(100vh-120px)] overflow-y-auto bg-white/95 text-zinc-800 shadow-[0_10px_30px_rgba(0,0,0,0.1),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200/90 rounded-2xl p-4 backdrop-blur-md flex flex-col gap-4 text-xs select-none animate-in fade-in slide-in-from-left-2 duration-150">
-      {/* Header with Title & Close button */}
-      <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
-        <span className="font-semibold text-zinc-700 uppercase tracking-wider text-[11px]">
-          {selectedShape.type} Properties
+    <div className="absolute left-4 top-[72px] z-20 w-[230px] max-h-[calc(100vh-100px)] overflow-y-auto bg-white text-zinc-800 shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200 rounded-2xl backdrop-blur-md select-none">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
+        <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
+          {typeName}
         </span>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
-          title="Deselect (Esc)"
+          className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+          title="Deselect"
         >
-          <X size={14} />
+          <X size={13} />
         </button>
       </div>
 
-      {/* 1. Label Input */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Label / Text</label>
-        <input
-          type="text"
-          className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-xs text-zinc-800 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all"
-          placeholder="Enter text..."
-          value={selectedShape.text || ''}
-          onChange={(e) => updateSelectedShape({ text: e.target.value })}
-        />
-      </div>
+      {/* ── Body ───────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-5 px-4 py-4">
 
-      {/* 2. Stroke Color */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Stroke</label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {STROKE_COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => updateSelectedShape({ strokeColor: c })}
-              style={{ backgroundColor: c }}
-              className={`w-6.5 h-6.5 rounded-lg transition-transform cursor-pointer ${
-                currentStroke === c
-                  ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 shadow-xs'
-                  : 'hover:scale-105'
-              }`}
-              title={c}
+        {/* Label input (not for pen/arrow/line) */}
+        {!isPenType && (
+          <Section label="Label">
+            <input
+              type="text"
+              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-[12px] text-zinc-800 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-zinc-300"
+              placeholder="Add a label…"
+              value={selectedShape.text || ''}
+              onChange={(e) => updateSelectedShape({ text: e.target.value })}
             />
-          ))}
-        </div>
-      </div>
+          </Section>
+        )}
 
-      {/* 3. Background / Fill Color */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Background</label>
-        <div className="flex items-center gap-2 flex-wrap">
-          {FILL_COLORS.map((c) => (
+        {/* Stroke color */}
+        <Section label="Stroke">
+          <ColorRow
+            colors={STROKE_COLORS}
+            selected={strokeColor}
+            onChange={(c) => updateSelectedShape({ strokeColor: c })}
+          />
+        </Section>
+
+        {/* Fill color (not for lines / pen) */}
+        {!isLineType && !isPenType && (
+          <Section label="Fill">
+            <ColorRow
+              colors={FILL_COLORS}
+              selected={fillColor}
+              onChange={(c) => updateSelectedShape({ fillColor: c })}
+              transparent
+            />
+          </Section>
+        )}
+
+        {/* Stroke width */}
+        <Section label="Stroke Width">
+          <SegmentedControl
+            value={strokeWidth}
+            onChange={(v) => updateSelectedShape({ strokeWidth: v })}
+            options={[
+              { val: 1, label: 'Thin' },
+              { val: 2, label: 'Regular' },
+              { val: 4, label: 'Bold' },
+            ]}
+          />
+        </Section>
+
+        {/* Stroke style */}
+        <Section label="Stroke Style">
+          <SegmentedControl
+            value={strokeStyle}
+            onChange={(v) => updateSelectedShape({ strokeStyle: v })}
+            options={[
+              { val: 'solid',  label: 'Solid' },
+              { val: 'dashed', label: 'Dashed' },
+              { val: 'dotted', label: 'Dotted' },
+            ]}
+          />
+        </Section>
+
+        {/* Font size + text align (not for lines / pen) */}
+        {!isLineType && !isPenType && (
+          <>
+            <Section label="Font Size">
+              <SegmentedControl
+                value={fontSize}
+                onChange={(v) => updateSelectedShape({ fontSize: v })}
+                options={[
+                  { val: 12, label: 'XS' },
+                  { val: 15, label: 'S' },
+                  { val: 20, label: 'M' },
+                  { val: 28, label: 'L' },
+                  { val: 36, label: 'XL' },
+                ]}
+              />
+            </Section>
+
+            <Section label="Text Align">
+              <SegmentedControl
+                value={textAlign}
+                onChange={(v) => updateSelectedShape({ textAlign: v })}
+                options={[
+                  { val: 'left',   icon: AlignLeft,   title: 'Align Left' },
+                  { val: 'center', icon: AlignCenter,  title: 'Align Center' },
+                  { val: 'right',  icon: AlignRight,   title: 'Align Right' },
+                ]}
+              />
+            </Section>
+          </>
+        )}
+
+        {/* Opacity */}
+        <Section label={`Opacity — ${opacity}%`}>
+          <input
+            type="range"
+            min="10"
+            max="100"
+            step="5"
+            value={opacity}
+            onChange={(e) => updateSelectedShape({ opacity: Number(e.target.value) })}
+            className="w-full h-1.5 rounded-full accent-indigo-600 cursor-pointer bg-zinc-200"
+          />
+        </Section>
+
+        {/* Layers */}
+        <Section label="Layers">
+          <div className="grid grid-cols-2 gap-2">
             <button
-              key={c}
-              onClick={() => updateSelectedShape({ fillColor: c })}
-              style={{
-                backgroundColor: c === 'transparent' ? '#ffffff' : c,
-              }}
-              className={`w-6.5 h-6.5 rounded-lg border border-zinc-200 transition-transform cursor-pointer ${
-                c === 'transparent' ? 'relative overflow-hidden' : ''
-              } ${
-                currentFill === c
-                  ? 'ring-2 ring-indigo-500 ring-offset-2 scale-110 shadow-xs'
-                  : 'hover:scale-105'
-              }`}
-              title={c === 'transparent' ? 'Transparent' : c}
+              onClick={bringToFront}
+              className="flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-[11px] font-medium transition-colors cursor-pointer"
             >
-              {c === 'transparent' && (
-                <div className="absolute inset-0 border-t-2 border-red-500 rotate-45 top-2.5" />
-              )}
+              <ArrowUpToLine size={13} />
+              Forward
             </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 4. Stroke Width */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Stroke width</label>
-        <div className="grid grid-cols-3 gap-1 bg-zinc-100 p-1 rounded-xl">
-          {[
-            { label: 'Thin', val: 1 },
-            { label: 'Regular', val: 2 },
-            { label: 'Bold', val: 4 },
-          ].map((item) => (
             <button
-              key={item.val}
-              onClick={() => updateSelectedShape({ strokeWidth: item.val })}
-              className={`py-1.5 rounded-lg font-medium text-center transition-all cursor-pointer ${
-                currentWidth === item.val
-                  ? 'bg-white shadow-xs text-indigo-600 font-semibold'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
+              onClick={sendToBack}
+              className="flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-[11px] font-medium transition-colors cursor-pointer"
             >
-              {item.label}
+              <ArrowDownToLine size={13} />
+              Backward
             </button>
-          ))}
-        </div>
+          </div>
+        </Section>
       </div>
 
-      {/* 5. Stroke Style (Solid, Dashed, Dotted) */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Stroke style</label>
-        <div className="grid grid-cols-3 gap-1 bg-zinc-100 p-1 rounded-xl text-[11px]">
-          {[
-            { id: 'solid', label: 'Solid' },
-            { id: 'dashed', label: 'Dashed' },
-            { id: 'dotted', label: 'Dotted' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => updateSelectedShape({ strokeStyle: item.id })}
-              className={`py-1.5 rounded-lg font-medium text-center transition-all cursor-pointer ${
-                currentStyle === item.id
-                  ? 'bg-white shadow-xs text-indigo-600 font-semibold'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 6. Font Size */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Font size</label>
-        <div className="grid grid-cols-4 gap-1 bg-zinc-100 p-1 rounded-xl">
-          {[
-            { label: 'S', val: 14 },
-            { label: 'M', val: 18 },
-            { label: 'L', val: 24 },
-            { label: 'XL', val: 32 },
-          ].map((item) => (
-            <button
-              key={item.label}
-              onClick={() => updateSelectedShape({ fontSize: item.val })}
-              className={`py-1.5 rounded-lg font-medium text-center transition-all cursor-pointer ${
-                currentFontSize === item.val
-                  ? 'bg-white shadow-xs text-indigo-600 font-bold'
-                  : 'text-zinc-600 hover:text-zinc-900'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 7. Text Align */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Text align</label>
-        <div className="grid grid-cols-3 gap-1 bg-zinc-100 p-1 rounded-xl">
-          {[
-            { id: 'left', icon: AlignLeft },
-            { id: 'center', icon: AlignCenter },
-            { id: 'right', icon: AlignRight },
-          ].map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => updateSelectedShape({ textAlign: item.id })}
-                className={`py-1.5 flex items-center justify-center rounded-lg transition-all cursor-pointer ${
-                  currentAlign === item.id
-                    ? 'bg-white shadow-xs text-indigo-600'
-                    : 'text-zinc-600 hover:text-zinc-900'
-                }`}
-              >
-                <Icon size={15} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 8. Opacity Slider */}
-      <div>
-        <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-600 mb-1.5">
-          <span>Opacity</span>
-          <span className="font-mono text-zinc-500">{currentOpacity}%</span>
-        </div>
-        <input
-          type="range"
-          min="10"
-          max="100"
-          value={currentOpacity}
-          onChange={(e) => updateSelectedShape({ opacity: Number(e.target.value) })}
-          className="w-full accent-indigo-600 cursor-pointer h-1.5 bg-zinc-200 rounded-lg"
-        />
-      </div>
-
-      {/* 9. Layers */}
-      <div>
-        <label className="text-[11px] font-semibold text-zinc-600 mb-1.5 block">Layers</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={bringToFront}
-            className="flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-1.5 rounded-xl transition-colors cursor-pointer"
-            title="Bring Forward"
-          >
-            <ArrowUpToLine size={14} />
-            <span>Forward</span>
-          </button>
-          <button
-            onClick={sendToBack}
-            className="flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-1.5 rounded-xl transition-colors cursor-pointer"
-            title="Send Backward"
-          >
-            <ArrowDownToLine size={14} />
-            <span>Backward</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="w-full h-px bg-zinc-200 my-0.5" />
-
-      {/* 10. Actions (Duplicate & Delete) */}
-      <div className="flex items-center gap-2">
+      {/* ── Footer Actions ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-100">
         <button
           onClick={duplicateSelectedShape}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-2 rounded-xl transition-colors font-medium cursor-pointer"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-700 text-zinc-700 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer"
         >
-          <Copy size={14} />
-          <span>Duplicate</span>
+          <Copy size={13} />
+          Duplicate
         </button>
         <button
           onClick={deleteSelectedShape}
-          className="flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-600 p-2 rounded-xl transition-colors cursor-pointer"
-          title="Delete Shape (Del)"
+          className="w-9 h-9 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-xl transition-colors cursor-pointer"
+          title="Delete (Del / Backspace)"
         >
-          <Trash2 size={16} />
+          <Trash2 size={15} />
         </button>
       </div>
     </div>
