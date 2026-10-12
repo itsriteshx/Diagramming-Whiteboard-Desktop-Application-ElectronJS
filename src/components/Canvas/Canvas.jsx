@@ -1,24 +1,16 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
-import { drawGrid, drawShape, drawSelectionBox } from '../../utils/renderer';
+import { isPointInShape } from '../../utils/coordinates';
+import { drawGrid, drawShape, drawSelectionBox, drawHoverBox } from '../../utils/renderer';
 
 const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
 
 const PROPORTIONAL_SHAPES = new Set([
   TOOLS.RECTANGLE, TOOLS.ELLIPSE, TOOLS.DIAMOND,
   TOOLS.TRIANGLE, TOOLS.HEXAGON, TOOLS.STAR, TOOLS.PARALLELOGRAM,
+  TOOLS.RIGHT_TRIANGLE, TOOLS.TRAPEZOID, TOOLS.CUBE, TOOLS.CONE, TOOLS.COORDINATE_AXIS,
 ]);
-
-function distToSegment(px, py, x1, y1, x2, y2) {
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const lenSq = dx * dx + dy * dy;
-  if (lenSq === 0) return Math.hypot(px - x1, py - y1);
-  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
-}
 
 function getSelectionHandles(shape) {
   if (!shape) return [];
@@ -89,6 +81,7 @@ export function Canvas({
   const marqueeRef = useRef(null);
   useEffect(() => { marqueeRef.current = marquee; }, [marquee]);
 
+  const [hoveredId, setHoveredId] = useState(null);
   const [hoverCursor, setHoverCursor] = useState('default');
 
   const R = useRef({
@@ -126,7 +119,11 @@ export function Canvas({
     shapes.forEach((shape) => {
       const s = shape.id === editingId ? { ...shape, text: '' } : shape;
       drawShape(ctx, s);
-      if (shape.id === selectedId) drawSelectionBox(ctx, shape);
+      if (shape.id === selectedId) {
+        drawSelectionBox(ctx, shape);
+      } else if (shape.id === hoveredId) {
+        drawHoverBox(ctx, shape);
+      }
     });
 
     if (currentShape) drawShape(ctx, currentShape);
@@ -141,7 +138,7 @@ export function Canvas({
       ctx.strokeRect(marquee.x, marquee.y, marquee.width, marquee.height);
       ctx.restore();
     }
-  }, [shapes, currentShape, selectedId, pan, zoom, canvasBg, editingId, marquee]);
+  }, [shapes, currentShape, selectedId, hoveredId, pan, zoom, canvasBg, editingId, marquee]);
 
   useEffect(() => {
     let id = requestAnimationFrame(render);
@@ -207,30 +204,7 @@ export function Canvas({
     const { shapes } = R.current;
     for (let i = shapes.length - 1; i >= 0; i--) {
       const s = shapes[i];
-
-      if (s.type === 'arrow' || s.type === 'line') {
-        const d = distToSegment(worldX, worldY, s.x, s.y, s.x + s.width, s.y + s.height);
-        if (d <= 14) return s;
-        continue;
-      }
-
-      if (s.type === 'pen' && s.points && s.points.length > 0) {
-        for (let j = 0; j < s.points.length - 1; j++) {
-          if (distToSegment(worldX, worldY, s.points[j].x, s.points[j].y, s.points[j + 1].x, s.points[j + 1].y) <= 14) {
-            return s;
-          }
-        }
-        continue;
-      }
-
-      const pad = 8;
-      const minX = Math.min(s.x, s.x + s.width) - pad;
-      const maxX = Math.max(s.x, s.x + s.width) + pad;
-      const minY = Math.min(s.y, s.y + s.height) - pad;
-      const maxY = Math.max(s.y, s.y + s.height) + pad;
-      if (worldX >= minX && worldX <= maxX && worldY >= minY && worldY <= maxY) {
-        return s;
-      }
+      if (isPointInShape(worldX, worldY, s)) return s;
     }
     return null;
   };
@@ -257,6 +231,7 @@ export function Canvas({
 
     if (isSpace.current || activeTool === TOOLS.PAN || e.button === 1) {
       dragMode.current = 'pan';
+      setHoveredId(null);
       return;
     }
 
@@ -269,6 +244,7 @@ export function Canvas({
         setShapes(prev => prev.filter(s => s.id !== t.id));
         if (selectedId === t.id) setSelectedId(null);
       }
+      setHoveredId(null);
       return;
     }
 
@@ -281,6 +257,7 @@ export function Canvas({
           dragMode.current = 'resize';
           activeHandle.current = handle.id;
           initialShape.current = { ...selectedShape };
+          setHoveredId(null);
           return;
         }
       }
@@ -290,10 +267,12 @@ export function Canvas({
         setSelectedId(hit.id);
         dragMode.current = 'move';
         initialShape.current = { ...hit };
+        setHoveredId(null);
         return;
       }
 
       setSelectedId(null);
+      setHoveredId(null);
       dragMode.current = 'marquee';
       setMarquee({ x: world.x, y: world.y, width: 0, height: 0 });
       return;
@@ -317,10 +296,12 @@ export function Canvas({
       setEditingPos({ left: sx, top: sy, width: 220, height: 36 });
       if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
       isDown.current = false;
+      setHoveredId(null);
       return;
     }
 
     dragMode.current = 'draw';
+    setHoveredId(null);
     const base = {
       id: 'shape_' + Date.now(),
       type: activeTool,
@@ -342,26 +323,36 @@ export function Canvas({
     if (!isDown.current) {
       if (isSpace.current || activeTool === TOOLS.PAN) {
         setHoverCursor('grab');
+        setHoveredId(null);
       } else if (activeTool === TOOLS.SELECT) {
         const selectedShape = shapes.find(s => s.id === selectedId);
         if (selectedShape) {
           const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
           if (handle) {
             setHoverCursor(handle.cursor);
+            setHoveredId(null);
             return;
           }
-          const hit = hitTest(world.x, world.y);
-          if (hit && hit.id === selectedId) {
+          if (isPointInShape(world.x, world.y, selectedShape)) {
             setHoverCursor('move');
+            setHoveredId(null);
             return;
           }
         }
         const hitAny = hitTest(world.x, world.y);
-        setHoverCursor(hitAny ? 'pointer' : 'default');
+        if (hitAny) {
+          setHoveredId(hitAny.id);
+          setHoverCursor('pointer');
+        } else {
+          setHoveredId(null);
+          setHoverCursor('default');
+        }
       } else if (activeTool === TOOLS.ERASER) {
         setHoverCursor('not-allowed');
+        setHoveredId(null);
       } else {
         setHoverCursor('crosshair');
+        setHoveredId(null);
       }
       return;
     }

@@ -151,6 +151,152 @@ function drawSolidArrowhead(ctx, fromX, fromY, toX, toY, size = 13) {
   ctx.restore();
 }
 
+export function drawRightTriangle(ctx, shape) {
+  const { x, y, width, height } = shape;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y + height);
+  ctx.lineTo(x + width, y + height);
+  ctx.closePath();
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+
+  const corner = Math.min(12, Math.abs(width) / 5, Math.abs(height) / 5);
+  if (corner > 4) {
+    const dirX = width >= 0 ? 1 : -1;
+    const dirY = height >= 0 ? 1 : -1;
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.lineWidth = Math.max(1, (shape.strokeWidth || 2) * 0.7);
+    ctx.beginPath();
+    ctx.moveTo(x, y + height - dirY * corner);
+    ctx.lineTo(x + dirX * corner, y + height - dirY * corner);
+    ctx.lineTo(x + dirX * corner, y + height);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+export function drawCoordinateAxis(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+
+  ctx.beginPath();
+  ctx.moveTo(x, cy);
+  ctx.lineTo(x + width, cy);
+  ctx.moveTo(cx, y + height);
+  ctx.lineTo(cx, y);
+  ctx.stroke();
+
+  drawSolidArrowhead(ctx, x + 20, cy, x + width, cy, 9);
+  drawSolidArrowhead(ctx, x + width - 20, cy, x, cy, 9);
+  drawSolidArrowhead(ctx, cx, y + 20, cx, y, 9);
+  drawSolidArrowhead(ctx, cx, y + height - 20, cx, y + height, 9);
+
+  const tickSize = 3.5;
+  const numTicks = 3;
+  const xStep = Math.abs(width) / (numTicks * 2 + 2);
+  const yStep = Math.abs(height) / (numTicks * 2 + 2);
+
+  ctx.beginPath();
+  for (let i = 1; i <= numTicks * 2 + 1; i++) {
+    const tx = x + i * xStep;
+    if (Math.abs(tx - cx) > 4) {
+      ctx.moveTo(tx, cy - tickSize);
+      ctx.lineTo(tx, cy + tickSize);
+    }
+    const ty = y + i * yStep;
+    if (Math.abs(ty - cy) > 4) {
+      ctx.moveTo(cx - tickSize, ty);
+      ctx.lineTo(cx + tickSize, ty);
+    }
+  }
+  ctx.stroke();
+
+  ctx.save();
+  ctx.font = '600 11px Inter, sans-serif';
+  ctx.fillStyle = shape.strokeColor || '#1e1e1e';
+  ctx.fillText('X', x + width - 11, cy - 6);
+  ctx.fillText('Y', cx + 6, y + 11);
+  ctx.fillText('O', cx - 11, cy + 12);
+  ctx.restore();
+}
+
+export function drawTrapezoid(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const inset = Math.abs(width) * 0.22;
+  ctx.beginPath();
+  ctx.moveTo(x + inset, y);
+  ctx.lineTo(x + width - inset, y);
+  ctx.lineTo(x + width, y + height);
+  ctx.lineTo(x, y + height);
+  ctx.closePath();
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+}
+
+export function drawCube(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const dx = width * 0.28;
+  const dy = height * 0.28;
+  const fw = width * 0.72;
+  const fh = height * 0.72;
+  const fx = x;
+  const fy = y + dy;
+
+  ctx.beginPath();
+  ctx.rect(fx, fy, fw, fh);
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(fx, fy);
+  ctx.lineTo(fx + dx, fy - dy);
+  ctx.lineTo(fx + fw + dx, fy - dy);
+  ctx.lineTo(fx + fw, fy);
+  ctx.closePath();
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(fx + fw, fy);
+  ctx.lineTo(fx + fw + dx, fy - dy);
+  ctx.lineTo(fx + fw + dx, fy + fh - dy);
+  ctx.lineTo(fx + fw, fy + fh);
+  ctx.closePath();
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+}
+
+export function drawCone(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const cx = x + width / 2;
+  const rx = Math.abs(width) / 2;
+  const ry = Math.min(Math.abs(height) * 0.2, 26);
+  const baseY = y + height - ry;
+
+  ctx.beginPath();
+  ctx.moveTo(cx, y);
+  ctx.lineTo(x, baseY);
+  ctx.ellipse(cx, baseY, rx, ry, 0, Math.PI, 0, true);
+  ctx.lineTo(cx, y);
+  ctx.closePath();
+  if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY, rx, ry, 0, 0, Math.PI);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.ellipse(cx, baseY, rx, ry, 0, Math.PI, 0);
+  ctx.stroke();
+  ctx.restore();
+}
+
 export function drawShape(ctx, shape) {
   ctx.save();
   ctx.strokeStyle = shape.strokeColor || '#1e1e1e';
@@ -224,6 +370,26 @@ export function drawShape(ctx, shape) {
 
     case 'cloud':
       drawCloud(ctx, shape);
+      break;
+
+    case 'right_triangle':
+      drawRightTriangle(ctx, shape);
+      break;
+
+    case 'coordinate_axis':
+      drawCoordinateAxis(ctx, shape);
+      break;
+
+    case 'trapezoid':
+      drawTrapezoid(ctx, shape);
+      break;
+
+    case 'cube':
+      drawCube(ctx, shape);
+      break;
+
+    case 'cone':
+      drawCone(ctx, shape);
       break;
 
     case 'pen':
@@ -352,5 +518,21 @@ export function drawSelectionBox(ctx, shape) {
     ctx.stroke();
   });
 
+  ctx.restore();
+}
+
+export function drawHoverBox(ctx, shape) {
+  const { x, y, width, height } = shape;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.55)';
+  ctx.lineWidth = 1.5;
+  const padding = 6;
+  const minX = Math.min(x, x + width) - padding;
+  const minY = Math.min(y, y + height) - padding;
+  const w = Math.max(Math.abs(width) + padding * 2, 12);
+  const h = Math.max(Math.abs(height) + padding * 2, 12);
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(minX, minY, w, h);
   ctx.restore();
 }

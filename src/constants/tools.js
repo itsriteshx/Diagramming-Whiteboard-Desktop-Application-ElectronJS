@@ -15,6 +15,11 @@ export const TOOLS = {
   HEXAGON: 'hexagon',
   PARALLELOGRAM: 'parallelogram',
   STAR: 'star',
+  RIGHT_TRIANGLE: 'right_triangle',
+  COORDINATE_AXIS: 'coordinate_axis',
+  TRAPEZOID: 'trapezoid',
+  CUBE: 'cube',
+  CONE: 'cone',
 };
 
 export const STROKE_COLORS = [
