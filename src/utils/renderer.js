@@ -536,3 +536,40 @@ export function drawHoverBox(ctx, shape) {
   ctx.strokeRect(minX, minY, w, h);
   ctx.restore();
 }
+
+export function drawShapeAnchors(ctx, shape, activeAnchor = null) {
+  const minX = Math.min(shape.x, shape.x + shape.width);
+  const maxX = Math.max(shape.x, shape.x + shape.width);
+  const minY = Math.min(shape.y, shape.y + shape.height);
+  const maxY = Math.max(shape.y, shape.y + shape.height);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  const anchors = [
+    { name: 'top',    x: cx,   y: minY, shapeId: shape.id },
+    { name: 'bottom', x: cx,   y: maxY, shapeId: shape.id },
+    { name: 'left',   x: minX, y: cy,   shapeId: shape.id },
+    { name: 'right',  x: maxX, y: cy,   shapeId: shape.id },
+  ];
+
+  anchors.forEach((a) => {
+    const isTarget = activeAnchor && activeAnchor.shapeId === a.shapeId && activeAnchor.name === a.name;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(a.x, a.y, isTarget ? 6.5 : 4, 0, Math.PI * 2);
+    ctx.fillStyle = isTarget ? '#4f46e5' : '#ffffff';
+    ctx.strokeStyle = isTarget ? '#ffffff' : '#6366f1';
+    ctx.lineWidth = isTarget ? 2.5 : 1.5;
+    ctx.fill();
+    ctx.stroke();
+
+    if (isTarget) {
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, 11, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(99, 102, 241, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+    ctx.restore();
+  });
+}

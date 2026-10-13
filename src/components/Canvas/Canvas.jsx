@@ -1,8 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
-import { isPointInShape } from '../../utils/coordinates';
-import { drawGrid, drawShape, drawSelectionBox, drawHoverBox } from '../../utils/renderer';
+import { isPointInShape, findNearestAnchor, updateBoundArrows } from '../../utils/coordinates';
+import { drawGrid, drawShape, drawSelectionBox, drawHoverBox, drawShapeAnchors } from '../../utils/renderer';
 
 const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
 
@@ -77,6 +77,8 @@ export function Canvas({
   const dragWorldOrigin = useRef({ x: 0, y: 0 });
   const dragScreenOrigin = useRef({ x: 0, y: 0 });
 
+  const activeSnapAnchor = useRef(null);
+
   const [marquee, setMarquee] = useState(null);
   const marqueeRef = useRef(null);
   useEffect(() => { marqueeRef.current = marquee; }, [marquee]);
@@ -126,6 +128,20 @@ export function Canvas({
       }
     });
 
+    const isConnecting =
+      activeTool === TOOLS.ARROW ||
+      activeTool === TOOLS.LINE ||
+      (currentShape && (currentShape.type === TOOLS.ARROW || currentShape.type === TOOLS.LINE)) ||
+      (dragMode.current === 'resize' && initialShape.current && (initialShape.current.type === 'arrow' || initialShape.current.type === 'line'));
+
+    if (isConnecting) {
+      shapes.forEach((shape) => {
+        if (shape.type !== 'arrow' && shape.type !== 'line' && shape.type !== 'pen') {
+          drawShapeAnchors(ctx, shape, activeSnapAnchor.current);
+        }
+      });
+    }
+
     if (currentShape) drawShape(ctx, currentShape);
 
     if (marquee && (marquee.width > 2 || marquee.height > 2)) {
@@ -138,7 +154,7 @@ export function Canvas({
       ctx.strokeRect(marquee.x, marquee.y, marquee.width, marquee.height);
       ctx.restore();
     }
-  }, [shapes, currentShape, selectedId, hoveredId, pan, zoom, canvasBg, editingId, marquee]);
+  }, [shapes, currentShape, selectedId, hoveredId, pan, zoom, canvasBg, editingId, marquee, activeTool]);
 
   useEffect(() => {
     let id = requestAnimationFrame(render);
@@ -302,13 +318,30 @@ export function Canvas({
 
     dragMode.current = 'draw';
     setHoveredId(null);
+
+    let startX = world.x;
+    let startY = world.y;
+    let startBinding = null;
+
+    if (activeTool === TOOLS.ARROW || activeTool === TOOLS.LINE) {
+      const snap = findNearestAnchor(world.x, world.y, shapes);
+      if (snap) {
+        startX = snap.x;
+        startY = snap.y;
+        startBinding = { shapeId: snap.shapeId, anchor: snap.name };
+        activeSnapAnchor.current = snap;
+      }
+    }
+
     const base = {
       id: 'shape_' + Date.now(),
       type: activeTool,
-      x: world.x,
-      y: world.y,
+      x: startX,
+      y: startY,
       width: 0,
       height: 0,
+      startBinding,
+      endBinding: null,
       ...R.current.currentStyle,
     };
     if (activeTool === TOOLS.PEN) base.points = [{ x: world.x, y: world.y }];
@@ -353,6 +386,10 @@ export function Canvas({
       } else {
         setHoverCursor('crosshair');
         setHoveredId(null);
+        if (activeTool === TOOLS.ARROW || activeTool === TOOLS.LINE) {
+          const snap = findNearestAnchor(world.x, world.y, shapes);
+          activeSnapAnchor.current = snap;
+        }
       }
       return;
     }
@@ -398,16 +435,42 @@ export function Canvas({
       let newY = orig.y;
       let newW = orig.width;
       let newH = orig.height;
+      let newStartBinding = orig.startBinding;
+      let newEndBinding = orig.endBinding;
 
       if (orig.type === 'arrow' || orig.type === 'line') {
         if (hId === 'start') {
-          newX = orig.x + dx;
-          newY = orig.y + dy;
-          newW = orig.width - dx;
-          newH = orig.height - dy;
+          let targetX = orig.x + dx;
+          let targetY = orig.y + dy;
+          const snap = findNearestAnchor(targetX, targetY, shapes, orig.endBinding?.shapeId);
+          if (snap) {
+            targetX = snap.x;
+            targetY = snap.y;
+            newStartBinding = { shapeId: snap.shapeId, anchor: snap.name };
+            activeSnapAnchor.current = snap;
+          } else {
+            newStartBinding = null;
+            activeSnapAnchor.current = null;
+          }
+          newX = targetX;
+          newY = targetY;
+          newW = (orig.x + orig.width) - targetX;
+          newH = (orig.y + orig.height) - targetY;
         } else if (hId === 'end') {
-          newW = orig.width + dx;
-          newH = orig.height + dy;
+          let targetX = orig.x + orig.width + dx;
+          let targetY = orig.y + orig.height + dy;
+          const snap = findNearestAnchor(targetX, targetY, shapes, orig.startBinding?.shapeId);
+          if (snap) {
+            targetX = snap.x;
+            targetY = snap.y;
+            newEndBinding = { shapeId: snap.shapeId, anchor: snap.name };
+            activeSnapAnchor.current = snap;
+          } else {
+            newEndBinding = null;
+            activeSnapAnchor.current = null;
+          }
+          newW = targetX - orig.x;
+          newH = targetY - orig.y;
         }
       } else {
         switch (hId) {
@@ -456,18 +519,29 @@ export function Canvas({
         }
       }
 
-      setShapes(prev =>
-        prev.map(s => (s.id === selectedId ? { ...s, x: newX, y: newY, width: newW, height: newH } : s))
-      );
+      const updatedShape = {
+        ...orig,
+        x: newX,
+        y: newY,
+        width: newW,
+        height: newH,
+        startBinding: newStartBinding,
+        endBinding: newEndBinding,
+      };
+
+      setShapes(prev => updateBoundArrows(prev, updatedShape));
       return;
     }
 
     if (dragMode.current === 'move' && selectedId && initialShape.current) {
       const worldDx = world.x - dragWorldOrigin.current.x;
       const worldDy = world.y - dragWorldOrigin.current.y;
-      setShapes(prev =>
-        prev.map(s => (s.id === selectedId ? { ...s, x: initialShape.current.x + worldDx, y: initialShape.current.y + worldDy } : s))
-      );
+      const movedShape = {
+        ...initialShape.current,
+        x: initialShape.current.x + worldDx,
+        y: initialShape.current.y + worldDy,
+      };
+      setShapes(prev => updateBoundArrows(prev, movedShape));
       return;
     }
 
@@ -478,26 +552,40 @@ export function Canvas({
       } else {
         let newW = world.x - cs.x;
         let newH = world.y - cs.y;
+        let endBinding = null;
+
+        if (cs.type === TOOLS.ARROW || cs.type === TOOLS.LINE) {
+          const snap = findNearestAnchor(world.x, world.y, shapes, cs.startBinding?.shapeId);
+          if (snap) {
+            newW = snap.x - cs.x;
+            newH = snap.y - cs.y;
+            endBinding = { shapeId: snap.shapeId, anchor: snap.name };
+            activeSnapAnchor.current = snap;
+          } else {
+            activeSnapAnchor.current = null;
+          }
+        }
 
         if (isShift.current && PROPORTIONAL_SHAPES.has(cs.type)) {
           const side = Math.max(Math.abs(newW), Math.abs(newH));
           newW = newW < 0 ? -side : side;
           newH = newH < 0 ? -side : side;
         }
-        if (isShift.current && (cs.type === TOOLS.ARROW || cs.type === TOOLS.LINE)) {
+        if (isShift.current && (cs.type === TOOLS.ARROW || cs.type === TOOLS.LINE) && !endBinding) {
           const dist = Math.sqrt(newW * newW + newH * newH);
-          const snap = Math.round(Math.atan2(newH, newW) / (Math.PI / 4)) * (Math.PI / 4);
-          newW = dist * Math.cos(snap);
-          newH = dist * Math.sin(snap);
+          const snapAngle = Math.round(Math.atan2(newH, newW) / (Math.PI / 4)) * (Math.PI / 4);
+          newW = dist * Math.cos(snapAngle);
+          newH = dist * Math.sin(snapAngle);
         }
 
-        setCurrentShape(prev => ({ ...prev, width: newW, height: newH }));
+        setCurrentShape(prev => ({ ...prev, width: newW, height: newH, endBinding }));
       }
     }
   };
 
   const handleMouseUp = () => {
     isDown.current = false;
+    activeSnapAnchor.current = null;
 
     if (dragMode.current === 'marquee') {
       const mq = marqueeRef.current;

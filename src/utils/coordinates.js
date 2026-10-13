@@ -174,3 +174,85 @@ export function isPointInShape(px, py, shape, tolerance = 10) {
   const maxY = Math.max(y, y + height) + tolerance;
   return px >= minX && px <= maxX && py >= minY && py <= maxY;
 }
+
+export function getShapeAnchors(shape) {
+  if (!shape || shape.type === 'arrow' || shape.type === 'line' || shape.type === 'pen') {
+    return [];
+  }
+  const minX = Math.min(shape.x, shape.x + shape.width);
+  const maxX = Math.max(shape.x, shape.x + shape.width);
+  const minY = Math.min(shape.y, shape.y + shape.height);
+  const maxY = Math.max(shape.y, shape.y + shape.height);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  return [
+    { name: 'top',    x: cx,   y: minY, shapeId: shape.id },
+    { name: 'bottom', x: cx,   y: maxY, shapeId: shape.id },
+    { name: 'left',   x: minX, y: cy,   shapeId: shape.id },
+    { name: 'right',  x: maxX, y: cy,   shapeId: shape.id },
+  ];
+}
+
+export function findNearestAnchor(worldX, worldY, shapes, excludeShapeId = null, snapRadius = 24) {
+  let nearest = null;
+  let minDistance = snapRadius;
+
+  for (const s of shapes) {
+    if (s.id === excludeShapeId || s.type === 'arrow' || s.type === 'line' || s.type === 'pen') continue;
+    const anchors = getShapeAnchors(s);
+    for (const a of anchors) {
+      const d = Math.hypot(worldX - a.x, worldY - a.y);
+      if (d < minDistance) {
+        minDistance = d;
+        nearest = a;
+      }
+    }
+  }
+
+  return nearest;
+}
+
+export function getAnchorPoint(shape, anchorName) {
+  const anchors = getShapeAnchors(shape);
+  const found = anchors.find(a => a.name === anchorName);
+  return found ? { x: found.x, y: found.y } : null;
+}
+
+export function updateBoundArrows(shapes, movedShape) {
+  return shapes.map(s => {
+    if (s.id === movedShape.id) return movedShape;
+    if (s.type !== 'arrow' && s.type !== 'line') return s;
+
+    let updated = { ...s };
+    let changed = false;
+
+    if (s.startBinding && s.startBinding.shapeId === movedShape.id) {
+      const pt = getAnchorPoint(movedShape, s.startBinding.anchor);
+      if (pt) {
+        const dx = pt.x - updated.x;
+        const dy = pt.y - updated.y;
+        updated.x = pt.x;
+        updated.y = pt.y;
+        updated.width = updated.width - dx;
+        updated.height = updated.height - dy;
+        changed = true;
+      }
+    }
+
+    if (s.endBinding && s.endBinding.shapeId === movedShape.id) {
+      const pt = getAnchorPoint(movedShape, s.endBinding.anchor);
+      if (pt) {
+        const currentEndX = updated.x + updated.width;
+        const currentEndY = updated.y + updated.height;
+        const dx = pt.x - currentEndX;
+        const dy = pt.y - currentEndY;
+        updated.width = updated.width + dx;
+        updated.height = updated.height + dy;
+        changed = true;
+      }
+    }
+
+    return changed ? updated : s;
+  });
+}

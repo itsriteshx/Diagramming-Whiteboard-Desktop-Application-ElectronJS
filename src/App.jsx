@@ -79,6 +79,8 @@ const INITIAL_SHAPES = [
     strokeColor: '#1e1e1e',
     strokeWidth: 2,
     strokeStyle: 'dashed',
+    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
+    endBinding: { shapeId: 'node_sup', anchor: 'top' },
   },
   {
     id: 'arrow_2',
@@ -90,6 +92,8 @@ const INITIAL_SHAPES = [
     strokeColor: '#1e1e1e',
     strokeWidth: 2,
     strokeStyle: 'dashed',
+    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
+    endBinding: { shapeId: 'node_unsup', anchor: 'top' },
   },
   {
     id: 'arrow_3',
@@ -101,6 +105,8 @@ const INITIAL_SHAPES = [
     strokeColor: '#1e1e1e',
     strokeWidth: 2,
     strokeStyle: 'dashed',
+    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
+    endBinding: { shapeId: 'node_db', anchor: 'top' },
   },
 ];
 
