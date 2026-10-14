@@ -1,8 +1,23 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
-import { isPointInShape, findNearestAnchor, updateBoundArrows } from '../../utils/coordinates';
-import { drawGrid, drawShape, drawSelectionBox, drawHoverBox, drawShapeAnchors } from '../../utils/renderer';
+import {
+  isPointInShape,
+  findNearestAnchor,
+  updateBoundArrows,
+  isShapeIntersectingBox,
+  getGroupMemberIds,
+  updateBoundArrowsForMoved,
+} from '../../utils/coordinates';
+import {
+  drawGrid,
+  drawShape,
+  drawSelectionBox,
+  drawHoverBox,
+  drawShapeAnchors,
+  drawSelectionOutline,
+  drawMultiSelectionBox,
+} from '../../utils/renderer';
 
 const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
 
@@ -56,6 +71,7 @@ export function Canvas({
   shapes, setShapes,
   activeTool, setActiveTool,
   selectedId, setSelectedId,
+  selectedIds, setSelectedIds,
   currentStyle,
   pan, setPan,
   zoom, zoomAtPoint, zoomIn, zoomOut, resetView,
@@ -74,6 +90,7 @@ export function Canvas({
   const dragMode = useRef(null);
   const activeHandle = useRef(null);
   const initialShape = useRef(null);
+  const initialShapes = useRef([]);
   const dragWorldOrigin = useRef({ x: 0, y: 0 });
   const dragScreenOrigin = useRef({ x: 0, y: 0 });
 
@@ -86,11 +103,18 @@ export function Canvas({
   const [hoveredId, setHoveredId] = useState(null);
   const [hoverCursor, setHoverCursor] = useState('default');
 
+  const effectiveSelectedIds = selectedIds || (selectedId ? [selectedId] : []);
+
+  const updateSelection = useCallback((ids) => {
+    if (setSelectedIds) setSelectedIds(ids);
+    if (setSelectedId) setSelectedId(ids.length > 0 ? ids[0] : null);
+  }, [setSelectedIds, setSelectedId]);
+
   const R = useRef({
-    shapes, activeTool, selectedId, pan, zoom, currentStyle, isToolLocked,
+    shapes, activeTool, selectedId, selectedIds: effectiveSelectedIds, pan, zoom, currentStyle, isToolLocked,
   });
   useEffect(() => {
-    R.current = { shapes, activeTool, selectedId, pan, zoom, currentStyle, isToolLocked };
+    R.current = { shapes, activeTool, selectedId, selectedIds: effectiveSelectedIds, pan, zoom, currentStyle, isToolLocked };
   });
 
   const [currentShape, setCurrentShape] = useState(null);
@@ -118,15 +142,30 @@ export function Canvas({
     drawGrid(ctx, canvas.width, canvas.height, pan, zoom * dpr, canvasBg?.dotColor || '#e5e7eb');
     ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, pan.x * dpr, pan.y * dpr);
 
+    const activeIds = R.current.selectedIds || [];
+    const isMultiSelect = activeIds.length > 1;
+
     shapes.forEach((shape) => {
       const s = shape.id === editingId ? { ...shape, text: '' } : shape;
       drawShape(ctx, s);
-      if (shape.id === selectedId) {
-        drawSelectionBox(ctx, shape);
+      if (activeIds.includes(shape.id)) {
+        if (!isMultiSelect) {
+          drawSelectionBox(ctx, shape);
+        } else {
+          drawSelectionOutline(ctx, shape);
+        }
       } else if (shape.id === hoveredId) {
         drawHoverBox(ctx, shape);
       }
     });
+
+    if (isMultiSelect) {
+      const selectedShapes = shapes.filter((s) => activeIds.includes(s.id));
+      const isGrouped =
+        selectedShapes.length > 1 &&
+        selectedShapes.every((s) => s.groupId && s.groupId === selectedShapes[0].groupId);
+      drawMultiSelectionBox(ctx, selectedShapes, isGrouped);
+    }
 
     const isConnecting =
       activeTool === TOOLS.ARROW ||
@@ -154,7 +193,7 @@ export function Canvas({
       ctx.strokeRect(marquee.x, marquee.y, marquee.width, marquee.height);
       ctx.restore();
     }
-  }, [shapes, currentShape, selectedId, hoveredId, pan, zoom, canvasBg, editingId, marquee, activeTool]);
+  }, [shapes, currentShape, effectiveSelectedIds, hoveredId, pan, zoom, canvasBg, editingId, marquee, activeTool]);
 
   useEffect(() => {
     let id = requestAnimationFrame(render);
@@ -183,10 +222,10 @@ export function Canvas({
         setIsSpaceState(true);
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
-        const selId = R.current.selectedId;
-        if (selId) {
-          setShapes(prev => prev.filter(s => s.id !== selId));
-          setSelectedId(null);
+        const activeIds = R.current.selectedIds || [];
+        if (activeIds.length > 0) {
+          setShapes(prev => prev.filter(s => !activeIds.includes(s.id)));
+          updateSelection([]);
         }
       }
     };
@@ -197,7 +236,7 @@ export function Canvas({
     window.addEventListener('keydown', onDown);
     window.addEventListener('keyup', onUp);
     return () => { window.removeEventListener('keydown', onDown); window.removeEventListener('keyup', onUp); };
-  }, [setShapes, setSelectedId]);
+  }, [setShapes, updateSelection]);
 
   useEffect(() => {
     if (editingId && textareaRef.current) {
@@ -265,29 +304,53 @@ export function Canvas({
     }
 
     if (activeTool === TOOLS.SELECT) {
-      const selectedShape = shapes.find(s => s.id === selectedId);
+      const activeSelectedIds = R.current.selectedIds || [];
 
-      if (selectedShape) {
-        const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
-        if (handle) {
-          dragMode.current = 'resize';
-          activeHandle.current = handle.id;
-          initialShape.current = { ...selectedShape };
-          setHoveredId(null);
-          return;
+      if (activeSelectedIds.length === 1) {
+        const selectedShape = shapes.find(s => s.id === activeSelectedIds[0]);
+        if (selectedShape) {
+          const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
+          if (handle) {
+            dragMode.current = 'resize';
+            activeHandle.current = handle.id;
+            initialShape.current = { ...selectedShape };
+            setHoveredId(null);
+            return;
+          }
         }
       }
 
       const hit = hitTest(world.x, world.y);
       if (hit) {
-        setSelectedId(hit.id);
+        const isShiftHeld = e.shiftKey || isShift.current;
+        let newSelection = [];
+
+        if (isShiftHeld) {
+          const hitIds = hit.groupId ? getGroupMemberIds(shapes, [hit.id]) : [hit.id];
+          const hasHit = hitIds.some(id => activeSelectedIds.includes(id));
+          if (hasHit) {
+            newSelection = activeSelectedIds.filter(id => !hitIds.includes(id));
+          } else {
+            newSelection = Array.from(new Set([...activeSelectedIds, ...hitIds]));
+          }
+        } else {
+          if (activeSelectedIds.includes(hit.id)) {
+            newSelection = activeSelectedIds;
+          } else {
+            newSelection = hit.groupId ? getGroupMemberIds(shapes, [hit.id]) : [hit.id];
+          }
+        }
+
+        updateSelection(newSelection);
         dragMode.current = 'move';
-        initialShape.current = { ...hit };
+        initialShapes.current = shapes.filter(s => newSelection.includes(s.id)).map(s => ({ ...s }));
         setHoveredId(null);
         return;
       }
 
-      setSelectedId(null);
+      if (!e.shiftKey && !isShift.current) {
+        updateSelection([]);
+      }
       setHoveredId(null);
       dragMode.current = 'marquee';
       setMarquee({ x: world.x, y: world.y, width: 0, height: 0 });
@@ -358,24 +421,27 @@ export function Canvas({
         setHoverCursor('grab');
         setHoveredId(null);
       } else if (activeTool === TOOLS.SELECT) {
-        const selectedShape = shapes.find(s => s.id === selectedId);
-        if (selectedShape) {
-          const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
-          if (handle) {
-            setHoverCursor(handle.cursor);
-            setHoveredId(null);
-            return;
-          }
-          if (isPointInShape(world.x, world.y, selectedShape)) {
-            setHoverCursor('move');
-            setHoveredId(null);
-            return;
+        const activeSelectedIds = R.current.selectedIds || [];
+        if (activeSelectedIds.length === 1) {
+          const selectedShape = shapes.find(s => s.id === activeSelectedIds[0]);
+          if (selectedShape) {
+            const handle = hitTestHandles(selectedShape, world.x, world.y, zoom);
+            if (handle) {
+              setHoverCursor(handle.cursor);
+              setHoveredId(null);
+              return;
+            }
           }
         }
         const hitAny = hitTest(world.x, world.y);
         if (hitAny) {
-          setHoveredId(hitAny.id);
-          setHoverCursor('pointer');
+          if (activeSelectedIds.includes(hitAny.id)) {
+            setHoverCursor('move');
+            setHoveredId(null);
+          } else {
+            setHoveredId(hitAny.id);
+            setHoverCursor('pointer');
+          }
         } else {
           setHoveredId(null);
           setHoverCursor('default');
@@ -533,16 +599,27 @@ export function Canvas({
       return;
     }
 
-    if (dragMode.current === 'move' && selectedId && initialShape.current) {
-      const worldDx = world.x - dragWorldOrigin.current.x;
-      const worldDy = world.y - dragWorldOrigin.current.y;
-      const movedShape = {
-        ...initialShape.current,
-        x: initialShape.current.x + worldDx,
-        y: initialShape.current.y + worldDy,
-      };
-      setShapes(prev => updateBoundArrows(prev, movedShape));
-      return;
+    if (dragMode.current === 'move') {
+      const activeInitialShapes = initialShapes.current.length > 0
+        ? initialShapes.current
+        : (initialShape.current ? [initialShape.current] : []);
+
+      if (activeInitialShapes.length > 0) {
+        const worldDx = world.x - dragWorldOrigin.current.x;
+        const worldDy = world.y - dragWorldOrigin.current.y;
+
+        const movedMap = new Map();
+        activeInitialShapes.forEach((s) => {
+          movedMap.set(s.id, {
+            ...s,
+            x: s.x + worldDx,
+            y: s.y + worldDy,
+          });
+        });
+
+        setShapes((prev) => updateBoundArrowsForMoved(prev, movedMap));
+        return;
+      }
     }
 
     const cs = currentShapeRef.current;
@@ -589,27 +666,19 @@ export function Canvas({
 
     if (dragMode.current === 'marquee') {
       const mq = marqueeRef.current;
-      if (mq && (mq.width > 4 || mq.height > 4)) {
-        const mx1 = mq.x;
-        const my1 = mq.y;
-        const mx2 = mq.x + mq.width;
-        const my2 = mq.y + mq.height;
-
+      if (mq && (mq.width > 3 || mq.height > 3)) {
         const currentShapes = R.current.shapes;
-        let foundId = null;
-        for (let i = currentShapes.length - 1; i >= 0; i--) {
-          const s = currentShapes[i];
-          const sx1 = Math.min(s.x, s.x + s.width);
-          const sy1 = Math.min(s.y, s.y + s.height);
-          const sx2 = Math.max(s.x, s.x + s.width);
-          const sy2 = Math.max(s.y, s.y + s.height);
+        const intersected = currentShapes.filter((s) => isShapeIntersectingBox(s, mq));
+        const intersectedIds = intersected.map((s) => s.id);
+        const expandedIds = getGroupMemberIds(currentShapes, intersectedIds);
 
-          if (mx1 <= sx2 && mx2 >= sx1 && my1 <= sy2 && my2 >= sy1) {
-            foundId = s.id;
-            break;
-          }
+        const isShiftHeld = isShift.current;
+        const activeSelectedIds = R.current.selectedIds || [];
+        if (isShiftHeld) {
+          updateSelection(Array.from(new Set([...activeSelectedIds, ...expandedIds])));
+        } else {
+          updateSelection(expandedIds);
         }
-        setSelectedId(foundId);
       }
       setMarquee(null);
     }
@@ -617,6 +686,7 @@ export function Canvas({
     dragMode.current = null;
     activeHandle.current = null;
     initialShape.current = null;
+    initialShapes.current = [];
 
     const cs = currentShapeRef.current;
     if (!cs) {
@@ -636,11 +706,11 @@ export function Canvas({
         y: cs.y - CLICK_TO_PLACE_SIZE.height / 2,
       };
       setShapes(prev => [...prev, placed]);
-      setSelectedId(placed.id);
+      updateSelection([placed.id]);
       if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
     } else if (!isTiny || isPen) {
       setShapes(prev => [...prev, cs]);
-      setSelectedId(cs.id);
+      updateSelection([cs.id]);
       if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
     }
 
@@ -675,7 +745,7 @@ export function Canvas({
       width: Math.max(shW * zoom - 8, 80),
       height: Math.max(shH * zoom - 8, 28),
     });
-    setSelectedId(hit.id);
+    updateSelection([hit.id]);
   };
 
   const handleTextareaKeyDown = (e) => {

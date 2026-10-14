@@ -573,3 +573,97 @@ export function drawShapeAnchors(ctx, shape, activeAnchor = null) {
     ctx.restore();
   });
 }
+
+export function drawSelectionOutline(ctx, shape) {
+  const { x, y, width, height } = shape;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(99, 102, 241, 0.6)';
+  ctx.lineWidth = 1.4;
+  const padding = 5;
+  const minX = Math.min(x, x + width) - padding;
+  const minY = Math.min(y, y + height) - padding;
+  const w = Math.max(Math.abs(width) + padding * 2, 10);
+  const h = Math.max(Math.abs(height) + padding * 2, 10);
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeRect(minX, minY, w, h);
+  ctx.restore();
+}
+
+export function drawMultiSelectionBox(ctx, shapes, isGrouped = false) {
+  if (!shapes || shapes.length === 0) return;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  shapes.forEach((s) => {
+    const sx1 = Math.min(s.x, s.x + s.width);
+    const sy1 = Math.min(s.y, s.y + s.height);
+    const sx2 = Math.max(s.x, s.x + s.width);
+    const sy2 = Math.max(s.y, s.y + s.height);
+    if (sx1 < minX) minX = sx1;
+    if (sy1 < minY) minY = sy1;
+    if (sx2 > maxX) maxX = sx2;
+    if (sy2 > maxY) maxY = sy2;
+  });
+
+  const padding = 10;
+  minX -= padding;
+  minY -= padding;
+  maxX += padding;
+  maxY += padding;
+  const w = maxX - minX;
+  const h = maxY - minY;
+
+  ctx.save();
+  ctx.strokeStyle = '#6366f1';
+  ctx.fillStyle = '#ffffff';
+  ctx.lineWidth = 1.8;
+
+  if (isGrouped) {
+    ctx.setLineDash([]);
+  } else {
+    ctx.setLineDash([6, 4]);
+  }
+  ctx.strokeRect(minX, minY, w, h);
+  ctx.setLineDash([]);
+
+  const cornerHandles = [
+    { x: minX, y: minY },
+    { x: maxX, y: minY },
+    { x: minX, y: maxY },
+    { x: maxX, y: maxY },
+  ];
+
+  cornerHandles.forEach((pt) => {
+    ctx.beginPath();
+    ctx.rect(pt.x - 4.5, pt.y - 4.5, 9, 9);
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  const badgeText = isGrouped ? `Group · ${shapes.length} items` : `${shapes.length} items`;
+  ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+  const textMetrics = ctx.measureText(badgeText);
+  const badgeWidth = textMetrics.width + 16;
+  const badgeHeight = 20;
+  const badgeX = minX;
+  const badgeY = minY - badgeHeight - 6;
+
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 5);
+  } else {
+    ctx.rect(badgeX, badgeY, badgeWidth, badgeHeight);
+  }
+  ctx.fillStyle = isGrouped ? '#4338ca' : '#4f46e5';
+  ctx.fill();
+
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(badgeText, badgeX + 8, badgeY + badgeHeight / 2);
+
+  ctx.restore();
+}

@@ -256,3 +256,116 @@ export function updateBoundArrows(shapes, movedShape) {
     return changed ? updated : s;
   });
 }
+
+export function getBoundingBox(shapes) {
+  if (!shapes || shapes.length === 0) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  shapes.forEach((s) => {
+    const sx1 = Math.min(s.x, s.x + s.width);
+    const sy1 = Math.min(s.y, s.y + s.height);
+    const sx2 = Math.max(s.x, s.x + s.width);
+    const sy2 = Math.max(s.y, s.y + s.height);
+
+    if (sx1 < minX) minX = sx1;
+    if (sy1 < minY) minY = sy1;
+    if (sx2 > maxX) maxX = sx2;
+    if (sy2 > maxY) maxY = sy2;
+  });
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+    minX,
+    minY,
+    maxX,
+    maxY,
+  };
+}
+
+export function isShapeIntersectingBox(shape, box) {
+  const sx1 = Math.min(shape.x, shape.x + shape.width);
+  const sy1 = Math.min(shape.y, shape.y + shape.height);
+  const sx2 = Math.max(shape.x, shape.x + shape.width);
+  const sy2 = Math.max(shape.y, shape.y + shape.height);
+
+  const bx1 = Math.min(box.x, box.x + box.width);
+  const by1 = Math.min(box.y, box.y + box.height);
+  const bx2 = Math.max(box.x, box.x + box.width);
+  const by2 = Math.max(box.y, box.y + box.height);
+
+  return bx1 <= sx2 && bx2 >= sx1 && by1 <= sy2 && by2 >= sy1;
+}
+
+export function getGroupMemberIds(shapes, targetShapeIds) {
+  const targetIdSet = new Set(targetShapeIds);
+  const targetGroupIds = new Set();
+
+  shapes.forEach((s) => {
+    if (targetIdSet.has(s.id) && s.groupId) {
+      targetGroupIds.add(s.groupId);
+    }
+  });
+
+  if (targetGroupIds.size === 0) {
+    return Array.from(targetIdSet);
+  }
+
+  const resultIds = new Set(targetIdSet);
+  shapes.forEach((s) => {
+    if (s.groupId && targetGroupIds.has(s.groupId)) {
+      resultIds.add(s.id);
+    }
+  });
+
+  return Array.from(resultIds);
+}
+
+export function updateBoundArrowsForMoved(shapes, movedShapesMap) {
+  return shapes.map((s) => {
+    if (movedShapesMap.has(s.id)) {
+      return movedShapesMap.get(s.id);
+    }
+
+    if (s.type !== 'arrow' && s.type !== 'line') return s;
+
+    let updated = { ...s };
+    let changed = false;
+
+    if (s.startBinding && movedShapesMap.has(s.startBinding.shapeId)) {
+      const movedShape = movedShapesMap.get(s.startBinding.shapeId);
+      const pt = getAnchorPoint(movedShape, s.startBinding.anchor);
+      if (pt) {
+        const dx = pt.x - updated.x;
+        const dy = pt.y - updated.y;
+        updated.x = pt.x;
+        updated.y = pt.y;
+        updated.width = updated.width - dx;
+        updated.height = updated.height - dy;
+        changed = true;
+      }
+    }
+
+    if (s.endBinding && movedShapesMap.has(s.endBinding.shapeId)) {
+      const movedShape = movedShapesMap.get(s.endBinding.shapeId);
+      const pt = getAnchorPoint(movedShape, s.endBinding.anchor);
+      if (pt) {
+        const currentEndX = updated.x + updated.width;
+        const currentEndY = updated.y + updated.height;
+        const dx = pt.x - currentEndX;
+        const dy = pt.y - currentEndY;
+        updated.width = updated.width + dx;
+        updated.height = updated.height + dy;
+        changed = true;
+      }
+    }
+
+    return changed ? updated : s;
+  });
+}

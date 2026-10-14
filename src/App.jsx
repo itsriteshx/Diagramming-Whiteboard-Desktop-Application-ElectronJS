@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Group, Ungroup, Copy, Trash2 } from 'lucide-react';
 import { Header } from './components/Header/Header';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { Canvas } from './components/Canvas/Canvas';
@@ -131,7 +132,7 @@ export default function App() {
   } = useHistory(INITIAL_SHAPES);
 
   const [activeTool, setActiveTool] = useState(TOOLS.SELECT);
-  const [selectedId, setSelectedId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [currentStyle, setCurrentStyle] = useState(DEFAULT_STYLE);
   const [docName, setDocName] = useState('Machine Learning & Architecture');
   const [docsContent, setDocsContent] = useState(INITIAL_DOCS);
@@ -140,43 +141,106 @@ export default function App() {
   const [isToolLocked, setIsToolLocked] = useState(false);
 
   const viewport = useCanvasViewport();
-  const selectedShape = shapes.find((s) => s.id === selectedId);
+  const selectedShapes = shapes.filter((s) => selectedIds.includes(s.id));
+  const selectedShape = selectedShapes[0] || null;
+  const selectedId = selectedIds[0] || null;
+  const setSelectedId = (id) => setSelectedIds(id ? [id] : []);
+
+  const isSelectionGrouped =
+    selectedShapes.length > 1 &&
+    selectedShapes.every((s) => s.groupId && s.groupId === selectedShapes[0].groupId);
 
   const updateSelectedShape = (updates) => {
-    if (!selectedId) return;
+    if (selectedIds.length === 0) return;
     setShapes((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, ...updates } : s))
+      prev.map((s) => (selectedIds.includes(s.id) ? { ...s, ...updates } : s))
     );
     setCurrentStyle((prev) => ({ ...prev, ...updates }));
   };
 
-  const deleteSelectedShape = () => {
-    if (!selectedId) return;
-    setShapes((prev) => prev.filter((s) => s.id !== selectedId));
-    setSelectedId(null);
-  };
+  const deleteSelectedShape = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setShapes((prev) => prev.filter((s) => !selectedIds.includes(s.id)));
+    setSelectedIds([]);
+  }, [selectedIds, setShapes]);
 
   const duplicateSelectedShape = useCallback(() => {
-    if (!selectedShape) return;
-    const newShape = {
-      ...selectedShape,
-      id: 'shape_' + Date.now(),
-      x: selectedShape.x + 20,
-      y: selectedShape.y + 20,
-    };
-    setShapes((prev) => [...prev, newShape]);
-    setSelectedId(newShape.id);
-  }, [selectedShape, setShapes]);
+    if (selectedIds.length === 0) return;
+
+    const groupMapping = {};
+    const newShapes = [];
+    const newIds = [];
+
+    shapes.forEach((s) => {
+      if (selectedIds.includes(s.id)) {
+        let newGroupId = undefined;
+        if (s.groupId) {
+          if (!groupMapping[s.groupId]) {
+            groupMapping[s.groupId] = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+          }
+          newGroupId = groupMapping[s.groupId];
+        }
+
+        const newId = 'shape_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        const dup = {
+          ...s,
+          id: newId,
+          x: s.x + 24,
+          y: s.y + 24,
+          ...(newGroupId ? { groupId: newGroupId } : {}),
+        };
+        newShapes.push(dup);
+        newIds.push(newId);
+      }
+    });
+
+    setShapes((prev) => [...prev, ...newShapes]);
+    setSelectedIds(newIds);
+  }, [selectedIds, shapes, setShapes]);
+
+  const groupSelectedShapes = useCallback(() => {
+    if (selectedIds.length <= 1) return;
+    const newGroupId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    setShapes((prev) =>
+      prev.map((s) => (selectedIds.includes(s.id) ? { ...s, groupId: newGroupId } : s))
+    );
+  }, [selectedIds, setShapes]);
+
+  const ungroupSelectedShapes = useCallback(() => {
+    if (selectedIds.length === 0) return;
+    setShapes((prev) =>
+      prev.map((s) => {
+        if (!selectedIds.includes(s.id)) return s;
+        const copy = { ...s };
+        delete copy.groupId;
+        return copy;
+      })
+    );
+  }, [selectedIds, setShapes]);
 
   const bringToFront = () => {
-    if (!selectedShape) return;
-    setShapes((prev) => [...prev.filter((s) => s.id !== selectedId), selectedShape]);
+    if (selectedIds.length === 0) return;
+    const activeSet = new Set(selectedIds);
+    const nonSelected = shapes.filter((s) => !activeSet.has(s.id));
+    const selected = shapes.filter((s) => activeSet.has(s.id));
+    setShapes([...nonSelected, ...selected]);
   };
 
   const sendToBack = () => {
-    if (!selectedShape) return;
-    setShapes((prev) => [selectedShape, ...prev.filter((s) => s.id !== selectedId)]);
+    if (selectedIds.length === 0) return;
+    const activeSet = new Set(selectedIds);
+    const nonSelected = shapes.filter((s) => !activeSet.has(s.id));
+    const selected = shapes.filter((s) => activeSet.has(s.id));
+    setShapes([...selected, ...nonSelected]);
   };
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(shapes.map((s) => s.id));
+  }, [shapes]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds([]);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -194,6 +258,29 @@ export default function App() {
       if ((modKey && e.key.toLowerCase() === 'y') || (modKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         redo();
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 'a' && !e.shiftKey) {
+        e.preventDefault();
+        selectAll();
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 'g' && !e.shiftKey) {
+        e.preventDefault();
+        groupSelectedShapes();
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 'g' && e.shiftKey) {
+        e.preventDefault();
+        ungroupSelectedShapes();
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        deselectAll();
         return;
       }
 
@@ -216,7 +303,7 @@ export default function App() {
         case 'e': setActiveTool(TOOLS.ERASER); break;
         case 'b': setActiveTool(TOOLS.DATABASE); break;
         case 'c': if (!modKey) setActiveTool(TOOLS.CLOUD); break;
-        case 'g': setActiveTool(TOOLS.TRIANGLE); break;
+        case 'g': if (!modKey) setActiveTool(TOOLS.TRIANGLE); break;
         case 'x': setActiveTool(TOOLS.HEXAGON); break;
         case 'q': setActiveTool(TOOLS.PARALLELOGRAM); break;
         case 'k': setActiveTool(TOOLS.STAR); break;
@@ -226,7 +313,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape]);
+  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll]);
 
   const handleSave = async () => {
     const projectData = JSON.stringify(
@@ -391,12 +478,16 @@ export default function App() {
 
         <PropertiesPanel
           selectedShape={selectedShape}
+          selectedShapes={selectedShapes}
           updateSelectedShape={updateSelectedShape}
           deleteSelectedShape={deleteSelectedShape}
           duplicateSelectedShape={duplicateSelectedShape}
           bringToFront={bringToFront}
           sendToBack={sendToBack}
-          onClose={() => setSelectedId(null)}
+          groupSelectedShapes={groupSelectedShapes}
+          ungroupSelectedShapes={ungroupSelectedShapes}
+          isSelectionGrouped={isSelectionGrouped}
+          onClose={() => setSelectedIds([])}
         />
 
         <Canvas
@@ -406,6 +497,8 @@ export default function App() {
           setActiveTool={setActiveTool}
           selectedId={selectedId}
           setSelectedId={setSelectedId}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
           currentStyle={currentStyle}
           pan={viewport.pan}
           setPan={viewport.setPan}
@@ -421,6 +514,55 @@ export default function App() {
           canRedo={canRedo}
           isToolLocked={isToolLocked}
         />
+
+        {selectedIds.length > 1 && (
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/90 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-2.5 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
+            <div className="flex items-center gap-2 font-medium text-zinc-200 pr-3 border-r border-zinc-700">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+              <span>{isSelectionGrouped ? `Grouped (${selectedShapes.length})` : `${selectedShapes.length} items`}</span>
+            </div>
+
+            {isSelectionGrouped ? (
+              <button
+                onClick={ungroupSelectedShapes}
+                title="Ungroup (Cmd+Shift+G)"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              >
+                <Ungroup size={14} className="text-indigo-400" />
+                <span>Ungroup</span>
+                <span className="text-[10px] text-zinc-500 font-mono">⇧⌘G</span>
+              </button>
+            ) : (
+              <button
+                onClick={groupSelectedShapes}
+                title="Group (Cmd+G)"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors cursor-pointer"
+              >
+                <Group size={14} />
+                <span>Group</span>
+                <span className="text-[10px] text-indigo-200 font-mono">⌘G</span>
+              </button>
+            )}
+
+            <button
+              onClick={duplicateSelectedShape}
+              title="Duplicate (Cmd+D)"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            >
+              <Copy size={13} />
+              <span>Duplicate</span>
+            </button>
+
+            <button
+              onClick={deleteSelectedShape}
+              title="Delete (Backspace)"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition-colors cursor-pointer"
+            >
+              <Trash2 size={13} />
+              <span>Delete</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

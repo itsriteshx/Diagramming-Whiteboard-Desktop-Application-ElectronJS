@@ -6,6 +6,8 @@ import {
   AlignRight,
   ArrowUpToLine,
   ArrowDownToLine,
+  Group,
+  Ungroup,
   X,
 } from 'lucide-react';
 import { STROKE_COLORS, FILL_COLORS } from '../../constants/tools';
@@ -81,33 +83,44 @@ function ColorRow({ colors, selected, onChange, transparent }) {
 
 export function PropertiesPanel({
   selectedShape,
+  selectedShapes = [],
   updateSelectedShape,
   deleteSelectedShape,
   duplicateSelectedShape,
   bringToFront,
   sendToBack,
+  groupSelectedShapes,
+  ungroupSelectedShapes,
+  isSelectionGrouped = false,
   onClose,
 }) {
-  if (!selectedShape) return null;
+  const isMulti = selectedShapes.length > 1;
+  const target = selectedShape || selectedShapes[0];
+  if (!target && !isMulti) return null;
 
-  const isLineType = selectedShape.type === 'arrow' || selectedShape.type === 'line';
-  const isPenType  = selectedShape.type === 'pen';
+  const isLineType = !isMulti && (target?.type === 'arrow' || target?.type === 'line');
+  const isPenType  = !isMulti && target?.type === 'pen';
 
-  const strokeColor  = selectedShape.strokeColor  || '#1e1e1e';
-  const fillColor    = selectedShape.fillColor    || 'transparent';
-  const strokeWidth  = selectedShape.strokeWidth  || 2;
-  const strokeStyle  = selectedShape.strokeStyle  || 'solid';
-  const fontSize     = selectedShape.fontSize     || 16;
-  const textAlign    = selectedShape.textAlign    || 'center';
-  const opacity      = selectedShape.opacity !== undefined ? selectedShape.opacity : 100;
+  const strokeColor  = target?.strokeColor  || '#1e1e1e';
+  const fillColor    = target?.fillColor    || 'transparent';
+  const strokeWidth  = target?.strokeWidth  || 2;
+  const strokeStyle  = target?.strokeStyle  || 'solid';
+  const fontSize     = target?.fontSize     || 16;
+  const textAlign    = target?.textAlign    || 'center';
+  const opacity      = target?.opacity !== undefined ? target?.opacity : 100;
 
-  const typeName = selectedShape.type.charAt(0).toUpperCase() + selectedShape.type.slice(1);
+  const titleText = isMulti
+    ? isSelectionGrouped
+      ? `Group (${selectedShapes.length})`
+      : `Selection (${selectedShapes.length})`
+    : target?.type.charAt(0).toUpperCase() + target?.type.slice(1);
 
   return (
     <div className="absolute left-4 top-[72px] z-20 w-[230px] max-h-[calc(100vh-100px)] overflow-y-auto bg-white text-zinc-800 shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200 rounded-2xl backdrop-blur-md select-none">
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
-        <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest">
-          {typeName}
+        <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
+          {isSelectionGrouped && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
+          {titleText}
         </span>
         <button
           onClick={onClose}
@@ -118,14 +131,42 @@ export function PropertiesPanel({
         </button>
       </div>
 
+      {isMulti && (
+        <div className="px-3 pt-3 pb-2 border-b border-zinc-100">
+          {isSelectionGrouped ? (
+            <button
+              onClick={ungroupSelectedShapes}
+              className="w-full py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                <Ungroup size={14} className="text-indigo-600" />
+                <span>Ungroup Elements</span>
+              </div>
+              <span className="text-[10px] text-zinc-400 font-mono">⇧⌘G</span>
+            </button>
+          ) : (
+            <button
+              onClick={groupSelectedShapes}
+              className="w-full py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-1.5">
+                <Group size={14} className="text-indigo-600" />
+                <span>Group Items</span>
+              </div>
+              <span className="text-[10px] text-indigo-400 font-mono">⌘G</span>
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-col gap-5 px-4 py-4">
-        {!isPenType && (
+        {!isMulti && !isPenType && (
           <Section label="Label">
             <input
               type="text"
               className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-[12px] text-zinc-800 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-zinc-300"
               placeholder="Add a label…"
-              value={selectedShape.text || ''}
+              value={target?.text || ''}
               onChange={(e) => updateSelectedShape({ text: e.target.value })}
             />
           </Section>
@@ -174,7 +215,7 @@ export function PropertiesPanel({
           />
         </Section>
 
-        {!isLineType && !isPenType && (
+        {!isMulti && !isLineType && !isPenType && (
           <>
             <Section label="Font Size">
               <SegmentedControl
