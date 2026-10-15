@@ -369,3 +369,193 @@ export function updateBoundArrowsForMoved(shapes, movedShapesMap) {
     return changed ? updated : s;
   });
 }
+
+export function alignShapes(shapes, selectedIds, alignment) {
+  const selectedShapes = shapes.filter((s) => selectedIds.includes(s.id));
+  if (selectedShapes.length < 2) return shapes;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+
+  selectedShapes.forEach((s) => {
+    const sx1 = Math.min(s.x, s.x + s.width);
+    const sx2 = Math.max(s.x, s.x + s.width);
+    const sy1 = Math.min(s.y, s.y + s.height);
+    const sy2 = Math.max(s.y, s.y + s.height);
+
+    if (sx1 < minX) minX = sx1;
+    if (sx2 > maxX) maxX = sx2;
+    if (sy1 < minY) minY = sy1;
+    if (sy2 > maxY) maxY = sy2;
+  });
+
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const movedMap = new Map();
+
+  selectedShapes.forEach((s) => {
+    const sx1 = Math.min(s.x, s.x + s.width);
+    const sx2 = Math.max(s.x, s.x + s.width);
+    const sy1 = Math.min(s.y, s.y + s.height);
+    const sy2 = Math.max(s.y, s.y + s.height);
+    const sw = sx2 - sx1;
+    const sh = sy2 - sy1;
+
+    let deltaX = 0;
+    let deltaY = 0;
+
+    switch (alignment) {
+      case 'left':
+        deltaX = minX - sx1;
+        break;
+      case 'center':
+        deltaX = centerX - (sx1 + sw / 2);
+        break;
+      case 'right':
+        deltaX = maxX - sx2;
+        break;
+      case 'top':
+        deltaY = minY - sy1;
+        break;
+      case 'middle':
+        deltaY = centerY - (sy1 + sh / 2);
+        break;
+      case 'bottom':
+        deltaY = maxY - sy2;
+        break;
+      default:
+        break;
+    }
+
+    if (deltaX !== 0 || deltaY !== 0) {
+      movedMap.set(s.id, {
+        ...s,
+        x: s.x + deltaX,
+        y: s.y + deltaY,
+      });
+    }
+  });
+
+  if (movedMap.size === 0) return shapes;
+  return updateBoundArrowsForMoved(shapes, movedMap);
+}
+
+export function distributeShapes(shapes, selectedIds, direction) {
+  const selectedShapes = shapes.filter((s) => selectedIds.includes(s.id));
+  if (selectedShapes.length < 3) return shapes;
+
+  const movedMap = new Map();
+
+  if (direction === 'horizontal') {
+    const sorted = [...selectedShapes].sort((a, b) => {
+      const ax = Math.min(a.x, a.x + a.width);
+      const bx = Math.min(b.x, b.x + b.width);
+      return ax - bx;
+    });
+
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const firstLeft = Math.min(first.x, first.x + first.width);
+    const lastRight = Math.max(last.x, last.x + last.width);
+    const totalSpan = lastRight - firstLeft;
+
+    let totalWidth = 0;
+    sorted.forEach((s) => {
+      totalWidth += Math.abs(s.width);
+    });
+
+    const totalGap = totalSpan - totalWidth;
+
+    if (totalGap >= 0) {
+      const gap = totalGap / (sorted.length - 1);
+      let currX = firstLeft;
+
+      sorted.forEach((s, idx) => {
+        const sx1 = Math.min(s.x, s.x + s.width);
+        const sw = Math.abs(s.width);
+
+        if (idx !== 0 && idx !== sorted.length - 1) {
+          const deltaX = currX - sx1;
+          if (deltaX !== 0) {
+            movedMap.set(s.id, { ...s, x: s.x + deltaX });
+          }
+        }
+        currX += sw + gap;
+      });
+    } else {
+      const firstCenter = firstLeft + Math.abs(first.width) / 2;
+      const lastCenter = Math.min(last.x, last.x + last.width) + Math.abs(last.width) / 2;
+      const step = (lastCenter - firstCenter) / (sorted.length - 1);
+
+      sorted.forEach((s, idx) => {
+        if (idx !== 0 && idx !== sorted.length - 1) {
+          const targetCenter = firstCenter + idx * step;
+          const currentCenter = Math.min(s.x, s.x + s.width) + Math.abs(s.width) / 2;
+          const deltaX = targetCenter - currentCenter;
+          if (deltaX !== 0) {
+            movedMap.set(s.id, { ...s, x: s.x + deltaX });
+          }
+        }
+      });
+    }
+  } else if (direction === 'vertical') {
+    const sorted = [...selectedShapes].sort((a, b) => {
+      const ay = Math.min(a.y, a.y + a.height);
+      const by = Math.min(b.y, b.y + b.height);
+      return ay - by;
+    });
+
+    const first = sorted[0];
+    const last = sorted[sorted.length - 1];
+    const firstTop = Math.min(first.y, first.y + first.height);
+    const lastBottom = Math.max(last.y, last.y + last.height);
+    const totalSpan = lastBottom - firstTop;
+
+    let totalHeight = 0;
+    sorted.forEach((s) => {
+      totalHeight += Math.abs(s.height);
+    });
+
+    const totalGap = totalSpan - totalHeight;
+
+    if (totalGap >= 0) {
+      const gap = totalGap / (sorted.length - 1);
+      let currY = firstTop;
+
+      sorted.forEach((s, idx) => {
+        const sy1 = Math.min(s.y, s.y + s.height);
+        const sh = Math.abs(s.height);
+
+        if (idx !== 0 && idx !== sorted.length - 1) {
+          const deltaY = currY - sy1;
+          if (deltaY !== 0) {
+            movedMap.set(s.id, { ...s, y: s.y + deltaY });
+          }
+        }
+        currY += sh + gap;
+      });
+    } else {
+      const firstCenter = firstTop + Math.abs(first.height) / 2;
+      const lastCenter = Math.min(last.y, last.y + last.height) + Math.abs(last.height) / 2;
+      const step = (lastCenter - firstCenter) / (sorted.length - 1);
+
+      sorted.forEach((s, idx) => {
+        if (idx !== 0 && idx !== sorted.length - 1) {
+          const targetCenter = firstCenter + idx * step;
+          const currentCenter = Math.min(s.y, s.y + s.height) + Math.abs(s.height) / 2;
+          const deltaY = targetCenter - currentCenter;
+          if (deltaY !== 0) {
+            movedMap.set(s.id, { ...s, y: s.y + deltaY });
+          }
+        }
+      });
+    }
+  }
+
+  if (movedMap.size === 0) return shapes;
+  return updateBoundArrowsForMoved(shapes, movedMap);
+}
+

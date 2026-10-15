@@ -1,5 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Group, Ungroup, Copy, Trash2 } from 'lucide-react';
+import {
+  Group,
+  Ungroup,
+  Copy,
+  Trash2,
+  AlignLeft,
+  AlignCenterHorizontal,
+  AlignRight,
+  AlignStartHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignHorizontalSpaceBetween,
+  AlignVerticalSpaceBetween,
+} from 'lucide-react';
 import { Header } from './components/Header/Header';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { Canvas } from './components/Canvas/Canvas';
@@ -8,6 +21,7 @@ import { DocsPanel } from './components/DocsPanel/DocsPanel';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
+import { alignShapes, distributeShapes } from './utils/coordinates';
 
 const INITIAL_SHAPES = [
   {
@@ -242,12 +256,39 @@ export default function App() {
     setSelectedIds([]);
   }, []);
 
+  const handleAlign = useCallback(
+    (alignment) => {
+      if (selectedIds.length < 2) return;
+      setShapes((prev) => alignShapes(prev, selectedIds, alignment));
+    },
+    [selectedIds, setShapes]
+  );
+
+  const handleDistribute = useCallback(
+    (direction) => {
+      if (selectedIds.length < 3) return;
+      setShapes((prev) => distributeShapes(prev, selectedIds, direction));
+    },
+    [selectedIds, setShapes]
+  );
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
 
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const modKey = isMac ? e.metaKey : e.ctrlKey;
+
+      if (e.altKey && e.shiftKey) {
+        if (e.key === 'ArrowLeft') { e.preventDefault(); handleAlign('left'); return; }
+        if (e.key === 'ArrowRight') { e.preventDefault(); handleAlign('right'); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); handleAlign('top'); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); handleAlign('bottom'); return; }
+        if (e.key.toLowerCase() === 'c') { e.preventDefault(); handleAlign('center'); return; }
+        if (e.key.toLowerCase() === 'm') { e.preventDefault(); handleAlign('middle'); return; }
+        if (e.key.toLowerCase() === 'h') { e.preventDefault(); handleDistribute('horizontal'); return; }
+        if (e.key.toLowerCase() === 'v') { e.preventDefault(); handleDistribute('vertical'); return; }
+      }
 
       if (modKey && e.key.toLowerCase() === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -313,7 +354,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll]);
+  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute]);
 
   const handleSave = async () => {
     const projectData = JSON.stringify(
@@ -487,6 +528,8 @@ export default function App() {
           groupSelectedShapes={groupSelectedShapes}
           ungroupSelectedShapes={ungroupSelectedShapes}
           isSelectionGrouped={isSelectionGrouped}
+          onAlign={handleAlign}
+          onDistribute={handleDistribute}
           onClose={() => setSelectedIds([])}
         />
 
@@ -516,8 +559,8 @@ export default function App() {
         />
 
         {selectedIds.length > 1 && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/90 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-2.5 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
-            <div className="flex items-center gap-2 font-medium text-zinc-200 pr-3 border-r border-zinc-700">
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/90 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-2 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
+            <div className="flex items-center gap-2 font-medium text-zinc-200 pr-2.5 border-r border-zinc-700">
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
               <span>{isSelectionGrouped ? `Grouped (${selectedShapes.length})` : `${selectedShapes.length} items`}</span>
             </div>
@@ -543,6 +586,71 @@ export default function App() {
                 <span className="text-[10px] text-indigo-200 font-mono">⌘G</span>
               </button>
             )}
+
+            <div className="flex items-center gap-0.5 px-1 py-0.5 bg-zinc-800/80 rounded-xl border border-zinc-700/50">
+              <button
+                onClick={() => handleAlign('left')}
+                title="Align Left (Alt+Shift+Left)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignLeft size={13} />
+              </button>
+              <button
+                onClick={() => handleAlign('center')}
+                title="Align Center Horizontal (Alt+Shift+C)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignCenterHorizontal size={13} />
+              </button>
+              <button
+                onClick={() => handleAlign('right')}
+                title="Align Right (Alt+Shift+Right)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignRight size={13} />
+              </button>
+              <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+              <button
+                onClick={() => handleAlign('top')}
+                title="Align Top (Alt+Shift+Up)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignStartHorizontal size={13} />
+              </button>
+              <button
+                onClick={() => handleAlign('middle')}
+                title="Align Middle Vertical (Alt+Shift+M)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignCenterVertical size={13} />
+              </button>
+              <button
+                onClick={() => handleAlign('bottom')}
+                title="Align Bottom (Alt+Shift+Down)"
+                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+              >
+                <AlignEndHorizontal size={13} />
+              </button>
+              {selectedShapes.length >= 3 && (
+                <>
+                  <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+                  <button
+                    onClick={() => handleDistribute('horizontal')}
+                    title="Distribute Horizontally (Alt+Shift+H)"
+                    className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+                  >
+                    <AlignHorizontalSpaceBetween size={13} />
+                  </button>
+                  <button
+                    onClick={() => handleDistribute('vertical')}
+                    title="Distribute Vertically (Alt+Shift+V)"
+                    className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+                  >
+                    <AlignVerticalSpaceBetween size={13} />
+                  </button>
+                </>
+              )}
+            </div>
 
             <button
               onClick={duplicateSelectedShape}

@@ -4,6 +4,12 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  AlignStartHorizontal,
+  AlignEndHorizontal,
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignHorizontalSpaceBetween,
+  AlignVerticalSpaceBetween,
   ArrowUpToLine,
   ArrowDownToLine,
   Group,
@@ -92,6 +98,8 @@ export function PropertiesPanel({
   groupSelectedShapes,
   ungroupSelectedShapes,
   isSelectionGrouped = false,
+  onAlign,
+  onDistribute,
   onClose,
 }) {
   const isMulti = selectedShapes.length > 1;
@@ -159,7 +167,97 @@ export function PropertiesPanel({
         </div>
       )}
 
+      {selectedShapes.length >= 2 && (
+        <div className="px-4 py-3 border-b border-zinc-100 flex flex-col gap-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+              Align Objects
+            </span>
+            <span className="text-[10px] font-mono text-zinc-400">Alt+⇧+Arrows</span>
+          </div>
+          <div className="grid grid-cols-6 gap-1 bg-zinc-50 border border-zinc-200/80 rounded-xl p-1">
+            <button
+              onClick={() => onAlign && onAlign('left')}
+              title="Align Left (Alt+Shift+Left)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignLeft size={14} />
+            </button>
+            <button
+              onClick={() => onAlign && onAlign('center')}
+              title="Align Center Horizontal (Alt+Shift+C)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignCenterHorizontal size={14} />
+            </button>
+            <button
+              onClick={() => onAlign && onAlign('right')}
+              title="Align Right (Alt+Shift+Right)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignRight size={14} />
+            </button>
+            <button
+              onClick={() => onAlign && onAlign('top')}
+              title="Align Top (Alt+Shift+Up)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignStartHorizontal size={14} />
+            </button>
+            <button
+              onClick={() => onAlign && onAlign('middle')}
+              title="Align Middle Vertical (Alt+Shift+M)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignCenterVertical size={14} />
+            </button>
+            <button
+              onClick={() => onAlign && onAlign('bottom')}
+              title="Align Bottom (Alt+Shift+Down)"
+              className="h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-indigo-600 hover:bg-white hover:shadow-xs transition-all cursor-pointer"
+            >
+              <AlignEndHorizontal size={14} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+              Distribute
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onDistribute && onDistribute('horizontal')}
+                disabled={selectedShapes.length < 3}
+                title={selectedShapes.length < 3 ? "Select 3+ shapes to distribute horizontally" : "Distribute Horizontally (Alt+Shift+H)"}
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all ${
+                  selectedShapes.length >= 3
+                    ? "bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer"
+                    : "bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                }`}
+              >
+                <AlignHorizontalSpaceBetween size={13} />
+                <span>Horiz</span>
+              </button>
+              <button
+                onClick={() => onDistribute && onDistribute('vertical')}
+                disabled={selectedShapes.length < 3}
+                title={selectedShapes.length < 3 ? "Select 3+ shapes to distribute vertically" : "Distribute Vertically (Alt+Shift+V)"}
+                className={`px-2 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all ${
+                  selectedShapes.length >= 3
+                    ? "bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer"
+                    : "bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                }`}
+              >
+                <AlignVerticalSpaceBetween size={13} />
+                <span>Vert</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-5 px-4 py-4">
+
         {!isMulti && !isPenType && (
           <Section label="Label">
             <input
