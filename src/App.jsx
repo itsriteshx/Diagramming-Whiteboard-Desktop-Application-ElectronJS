@@ -125,14 +125,38 @@ const INITIAL_SHAPES = [
   },
 ];
 
-const INITIAL_DOCS = `# Technical Architecture & Concept Notes
+const INITIAL_DOCS = `# Machine Learning System Architecture
 
-## Overview
-Visual diagrams along with structured documentation in a single desktop workspace.
+Visual whiteboard workspace coupled with structured technical documentation.
 
-- **Types of ML:** Supervised, Unsupervised, and Reinforcement models.
-- **Data Persistence:** Vector embeddings & training dataset stored in DB.
-- **Desktop Engine:** Electron native sandbox + React 19 + HTML5 Canvas.
+> [!NOTE]
+> Notes autosync with your diagram state and export as standalone .md specifications.
+
+## Architecture Components
+
+| Module | Core Responsibility | Stack |
+| :--- | :--- | :--- |
+| **Canvas Engine** | 2D Vector Rendering & Math Hit Detection | HTML5 Canvas 2D |
+| **Desktop Shell** | Native Window & OS Integration | Electron v41 |
+| **State & History** | Viewport Pan/Zoom & Infinite Undo/Redo | React 19 Hooks |
+
+## Engineering Milestones
+- [x] Canvas viewport transformation (Pan & Zoom Math)
+- [x] Smart sticky flowchart connectors & magnetic anchors
+- [x] Multi-selection marquee & element grouping
+- [x] Alignment & distribution suite (Horiz & Vert)
+- [x] Rich Markdown docs panel with live split-view preview
+- [ ] Export to SVG, PDF, and high-res PNG
+
+## Flowchart Snapping Logic
+\`\`\`javascript
+// Compute magnetic anchor points for node
+const anchors = getShapeAnchors(node);
+const nearest = findNearestAnchor(cursor.x, cursor.y, shapes);
+if (nearest) {
+  arrow.endBinding = { shapeId: nearest.shapeId, anchor: nearest.name };
+}
+\`\`\`
 `;
 
 export default function App() {
@@ -506,6 +530,7 @@ export default function App() {
           <DocsPanel
             docsContent={docsContent}
             setDocsContent={setDocsContent}
+            docName={docName}
             onClose={() => setIsDocsOpen(false)}
           />
         )}
