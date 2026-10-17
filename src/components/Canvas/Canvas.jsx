@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Undo2, Redo2 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
+import { Minimap } from './Minimap';
 import {
   isPointInShape,
   findNearestAnchor,
@@ -810,6 +811,16 @@ export function Canvas({
         <button onClick={undo} disabled={!canUndo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canUndo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Undo (Ctrl+Z)"><Undo2 size={16} /></button>
         <button onClick={redo} disabled={!canRedo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canRedo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Redo (Ctrl+Y)"><Redo2 size={16} /></button>
       </div>
+
+      <Minimap
+        shapes={shapes}
+        pan={pan}
+        setPan={setPan}
+        zoom={zoom}
+        resetView={resetView}
+        canvasBg={canvasBg}
+        containerRef={canvasRef}
+      />
     </div>
   );
 }
