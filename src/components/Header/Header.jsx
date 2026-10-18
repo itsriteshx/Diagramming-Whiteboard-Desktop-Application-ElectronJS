@@ -9,6 +9,7 @@ import {
   Palette,
   Check,
   Copy,
+  LayoutTemplate,
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
@@ -20,6 +21,7 @@ export function Header({
   onExport,
   onCopyImage,
   onClear,
+  onOpenTemplates,
   isDocsOpen,
   setIsDocsOpen,
   canvasBg,
@@ -76,6 +78,17 @@ export function Header({
 
               <button
                 onClick={() => {
+                  onOpenTemplates?.();
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-indigo-50 text-indigo-700 font-medium transition-colors cursor-pointer"
+              >
+                <LayoutTemplate size={15} />
+                <span>Architecture Templates...</span>
+              </button>
+
+              <button
+                onClick={() => {
                   onOpen();
                   setIsMenuOpen(false);
                 }}
@@ -120,6 +133,15 @@ export function Header({
       </div>
 
       <div className="flex items-center gap-2">
+        <button
+          onClick={onOpenTemplates}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-700 hover:text-indigo-600 hover:bg-indigo-50/80 border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
+          title="Choose Ready-made Architecture Templates"
+        >
+          <LayoutTemplate size={14} className="text-indigo-500" />
+          <span>Templates</span>
+        </button>
+
         <button
           onClick={onCopyImage}
           className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer"

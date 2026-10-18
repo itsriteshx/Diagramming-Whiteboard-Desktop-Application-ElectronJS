@@ -18,6 +18,7 @@ import { Toolbar } from './components/Toolbar/Toolbar';
 import { Canvas } from './components/Canvas/Canvas';
 import { PropertiesPanel } from './components/PropertiesPanel/PropertiesPanel';
 import { DocsPanel } from './components/DocsPanel/DocsPanel';
+import { TemplatesModal } from './components/TemplatesModal/TemplatesModal';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
@@ -175,6 +176,7 @@ export default function App() {
   const [docName, setDocName] = useState('Machine Learning & Architecture');
   const [docsContent, setDocsContent] = useState(INITIAL_DOCS);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
@@ -502,6 +504,69 @@ export default function App() {
     }
   };
 
+  const handleLoadTemplate = (template, mode = 'replace') => {
+    if (!template || !template.shapes) return;
+
+    const idMap = {};
+    template.shapes.forEach((s) => {
+      idMap[s.id] = 'shape_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    });
+
+    if (mode === 'replace') {
+      const newShapes = template.shapes.map((s) => ({
+        ...s,
+        id: idMap[s.id] || s.id,
+        startBinding: s.startBinding
+          ? { ...s.startBinding, shapeId: idMap[s.startBinding.shapeId] || s.startBinding.shapeId }
+          : null,
+        endBinding: s.endBinding
+          ? { ...s.endBinding, shapeId: idMap[s.endBinding.shapeId] || s.endBinding.shapeId }
+          : null,
+      }));
+
+      setShapes(newShapes);
+      setSelectedIds([]);
+      if (template.docs) setDocsContent(template.docs);
+      if (template.title) setDocName(template.title);
+      viewport.resetView();
+      setIsTemplatesOpen(false);
+      return;
+    }
+
+    if (mode === 'append') {
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (shapes.length > 0) {
+        const maxX = Math.max(...shapes.map((s) => (s.x || 0) + (s.width || 0)));
+        const minTplX = Math.min(...template.shapes.map((s) => s.x || 0));
+        offsetX = Math.max(0, maxX + 100 - minTplX);
+      }
+
+      const newShapes = template.shapes.map((s) => ({
+        ...s,
+        id: idMap[s.id] || s.id,
+        x: (s.x || 0) + offsetX,
+        y: (s.y || 0) + offsetY,
+        startBinding: s.startBinding
+          ? { ...s.startBinding, shapeId: idMap[s.startBinding.shapeId] || s.startBinding.shapeId }
+          : null,
+        endBinding: s.endBinding
+          ? { ...s.endBinding, shapeId: idMap[s.endBinding.shapeId] || s.endBinding.shapeId }
+          : null,
+      }));
+
+      setShapes((prev) => [...prev, ...newShapes]);
+      setSelectedIds(newShapes.map((s) => s.id));
+      if (template.docs) {
+        setDocsContent((prev) =>
+          prev ? `${prev}\n\n---\n\n${template.docs}` : template.docs
+        );
+      }
+      setIsTemplatesOpen(false);
+    }
+  };
+
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear the entire whiteboard?')) {
       setShapes([]);
@@ -519,6 +584,7 @@ export default function App() {
         onExport={handleExportPNG}
         onCopyImage={handleCopyImage}
         onClear={handleClear}
+        onOpenTemplates={() => setIsTemplatesOpen(true)}
         isDocsOpen={isDocsOpen}
         setIsDocsOpen={setIsDocsOpen}
         canvasBg={canvasBg}
@@ -697,6 +763,12 @@ export default function App() {
           </div>
         )}
       </div>
+
+      <TemplatesModal
+        isOpen={isTemplatesOpen}
+        onClose={() => setIsTemplatesOpen(false)}
+        onLoadTemplate={handleLoadTemplate}
+      />
     </div>
   );
 }
