@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Group,
   Ungroup,
@@ -12,6 +12,7 @@ import {
   AlignEndHorizontal,
   AlignHorizontalSpaceBetween,
   AlignVerticalSpaceBetween,
+  Clock,
 } from 'lucide-react';
 import { Header } from './components/Header/Header';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -23,6 +24,7 @@ import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
 import { alignShapes, distributeShapes } from './utils/coordinates';
+import { getRecentFiles, addRecentFile, clearRecentFiles } from './utils/recentFiles';
 
 const INITIAL_SHAPES = [
   {
@@ -180,6 +182,83 @@ export default function App() {
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
+  // Day 10: File I/O, Autosave & Dirty State
+  const [isDirty, setIsDirty] = useState(false);
+  const [currentFilePath, setCurrentFilePath] = useState(null);
+  const [recentFiles, setRecentFiles] = useState(() => getRecentFiles());
+  const [autosaveCandidate, setAutosaveCandidate] = useState(null);
+  const isFirstRender = useRef(true);
+
+  // Track unsaved modifications
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setIsDirty(true);
+  }, [shapes]);
+
+  // Window title updater with dirty asterisk
+  useEffect(() => {
+    document.title = `${isDirty ? '● ' : ''}${docName} - EraserBoard`;
+  }, [isDirty, docName]);
+
+  // Check for previous autosaved session on launch
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('eraserboard_autosave');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.shapes) && parsed.shapes.length > 0 && parsed.timestamp) {
+          if (Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
+            setAutosaveCandidate(parsed);
+          }
+        }
+      }
+    } catch {
+      // Ignore localStorage read errors
+    }
+  }, []);
+
+  // Debounced autosave backup every 1.5 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          'eraserboard_autosave',
+          JSON.stringify({
+            shapes,
+            docName,
+            docsContent,
+            canvasBg: canvasBg.id,
+            timestamp: Date.now(),
+          })
+        );
+      } catch {
+        // Ignore storage quota
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [shapes, docName, docsContent, canvasBg]);
+
+  const restoreAutosave = () => {
+    if (!autosaveCandidate) return;
+    if (autosaveCandidate.shapes) setShapes(autosaveCandidate.shapes);
+    if (autosaveCandidate.docName) setDocName(autosaveCandidate.docName);
+    if (autosaveCandidate.docsContent) setDocsContent(autosaveCandidate.docsContent);
+    if (autosaveCandidate.canvasBg) {
+      const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === autosaveCandidate.canvasBg);
+      if (foundBg) setCanvasBg(foundBg);
+    }
+    setAutosaveCandidate(null);
+    setIsDirty(true);
+  };
+
+  const dismissAutosave = () => {
+    setAutosaveCandidate(null);
+  };
+
   const viewport = useCanvasViewport();
   const selectedShapes = shapes.filter((s) => selectedIds.includes(s.id));
   const selectedShape = selectedShapes[0] || null;
@@ -298,6 +377,208 @@ export default function App() {
     [selectedIds, setShapes]
   );
 
+  const handleNew = useCallback(() => {
+    if (isDirty) {
+      const confirmNew = window.confirm(
+        'You have unsaved changes on this whiteboard. Start a new diagram anyway?'
+      );
+      if (!confirmNew) return;
+    }
+    setShapes([]);
+    setDocName('Untitled Diagram');
+    setDocsContent('');
+    setCurrentFilePath(null);
+    setIsDirty(false);
+    setSelectedIds([]);
+    viewport.resetView();
+  }, [isDirty, setShapes, viewport]);
+
+  const handleSave = useCallback(async () => {
+    const projectData = JSON.stringify(
+      {
+        docName,
+        version: '1.0.0',
+        canvasBg: canvasBg.id,
+        shapes,
+        docsContent,
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    );
+
+    if (window.electronAPI?.saveFile) {
+      const result = await window.electronAPI.saveFile(
+        projectData,
+        `${docName.toLowerCase().replace(/\s+/g, '-')}.eraser`,
+        currentFilePath,
+        false
+      );
+      if (result?.success && result.filePath) {
+        setCurrentFilePath(result.filePath);
+        setIsDirty(false);
+        const updated = addRecentFile(result.filePath, docName);
+        setRecentFiles(updated);
+      }
+    } else {
+      const blob = new Blob([projectData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docName.toLowerCase().replace(/\s+/g, '-')}.eraser`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setIsDirty(false);
+    }
+  }, [docName, canvasBg.id, shapes, docsContent, currentFilePath]);
+
+  const handleSaveAs = useCallback(async () => {
+    const projectData = JSON.stringify(
+      {
+        docName,
+        version: '1.0.0',
+        canvasBg: canvasBg.id,
+        shapes,
+        docsContent,
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2
+    );
+
+    if (window.electronAPI?.saveFile) {
+      const result = await window.electronAPI.saveFile(
+        projectData,
+        `${docName.toLowerCase().replace(/\s+/g, '-')}.eraser`,
+        currentFilePath,
+        true
+      );
+      if (result?.success && result.filePath) {
+        setCurrentFilePath(result.filePath);
+        setIsDirty(false);
+        const updated = addRecentFile(result.filePath, docName);
+        setRecentFiles(updated);
+      }
+    } else {
+      handleSave();
+    }
+  }, [docName, canvasBg.id, shapes, docsContent, currentFilePath, handleSave]);
+
+  const handleOpen = useCallback(async () => {
+    if (isDirty) {
+      const confirmOpen = window.confirm(
+        'You have unsaved changes. Opening another file will replace current whiteboard. Continue?'
+      );
+      if (!confirmOpen) return;
+    }
+
+    if (window.electronAPI?.openFile) {
+      const result = await window.electronAPI.openFile();
+      if (result?.success && result.content) {
+        try {
+          const parsed = JSON.parse(result.content);
+          if (parsed.shapes) setShapes(parsed.shapes);
+          if (parsed.docName) setDocName(parsed.docName);
+          if (parsed.docsContent) setDocsContent(parsed.docsContent);
+          if (parsed.canvasBg) {
+            const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === parsed.canvasBg);
+            if (foundBg) setCanvasBg(foundBg);
+          }
+          if (result.filePath) {
+            setCurrentFilePath(result.filePath);
+            const updated = addRecentFile(result.filePath, parsed.docName || docName);
+            setRecentFiles(updated);
+          }
+          setIsDirty(false);
+          setSelectedIds([]);
+          viewport.resetView();
+        } catch {
+          alert('Failed to parse diagram project file.');
+        }
+      }
+    } else {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.eraser,.json';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const parsed = JSON.parse(event.target.result);
+            if (parsed.shapes) setShapes(parsed.shapes);
+            if (parsed.docName) setDocName(parsed.docName);
+            if (parsed.docsContent) setDocsContent(parsed.docsContent);
+            if (parsed.canvasBg) {
+              const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === parsed.canvasBg);
+              if (foundBg) setCanvasBg(foundBg);
+            }
+            setIsDirty(false);
+            setSelectedIds([]);
+            viewport.resetView();
+          } catch {
+            alert('Invalid project file.');
+          }
+        };
+        reader.readAsText(file);
+      };
+      input.click();
+    }
+  }, [isDirty, docName, setShapes, viewport]);
+
+  const handleOpenRecent = useCallback(async (filePath) => {
+    if (!filePath) return;
+    if (isDirty) {
+      const confirmOpen = window.confirm(
+        'You have unsaved changes. Opening another project will replace your current whiteboard. Continue?'
+      );
+      if (!confirmOpen) return;
+    }
+
+    if (window.electronAPI?.readFilePath) {
+      const result = await window.electronAPI.readFilePath(filePath);
+      if (result?.success && result.content) {
+        try {
+          const parsed = JSON.parse(result.content);
+          if (parsed.shapes) setShapes(parsed.shapes);
+          if (parsed.docName) setDocName(parsed.docName);
+          if (parsed.docsContent) setDocsContent(parsed.docsContent);
+          if (parsed.canvasBg) {
+            const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === parsed.canvasBg);
+            if (foundBg) setCanvasBg(foundBg);
+          }
+          setCurrentFilePath(filePath);
+          setIsDirty(false);
+          setSelectedIds([]);
+          const updated = addRecentFile(filePath, parsed.docName || docName);
+          setRecentFiles(updated);
+          viewport.resetView();
+        } catch {
+          alert('Failed to parse recent project file.');
+        }
+      } else {
+        alert('Could not find file at: ' + filePath);
+      }
+    }
+  }, [isDirty, docName, setShapes, viewport]);
+
+  const handleClearRecent = useCallback(() => {
+    clearRecentFiles();
+    setRecentFiles([]);
+  }, []);
+
+  // Listen to native macOS/Windows top menu actions
+  useEffect(() => {
+    if (window.electronAPI) {
+      window.electronAPI.onMenuNew?.(handleNew);
+      window.electronAPI.onMenuSave?.(handleSave);
+      window.electronAPI.onMenuSaveAs?.(handleSaveAs);
+      window.electronAPI.onMenuOpen?.(handleOpen);
+      window.electronAPI.onMenuExport?.(handleExportPNG);
+    }
+  }, [handleNew, handleSave, handleSaveAs, handleOpen]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -325,6 +606,28 @@ export default function App() {
       if ((modKey && e.key.toLowerCase() === 'y') || (modKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         redo();
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleSaveAs();
+        } else {
+          handleSave();
+        }
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        handleOpen();
+        return;
+      }
+
+      if (modKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        handleNew();
         return;
       }
 
@@ -380,87 +683,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute]);
-
-  const handleSave = async () => {
-    const projectData = JSON.stringify(
-      {
-        docName,
-        version: '1.0.0',
-        canvasBg: canvasBg.id,
-        shapes,
-        docsContent,
-        updatedAt: new Date().toISOString(),
-      },
-      null,
-      2
-    );
-
-    if (window.electronAPI?.saveFile) {
-      const result = await window.electronAPI.saveFile(
-        projectData,
-        `${docName.toLowerCase().replace(/\s+/g, '-')}.eraser`
-      );
-      if (result.success) {
-        alert('Project saved successfully to disk!');
-      }
-    } else {
-      const blob = new Blob([projectData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${docName.toLowerCase().replace(/\s+/g, '-')}.eraser`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-  };
-
-  const handleOpen = async () => {
-    if (window.electronAPI?.openFile) {
-      const result = await window.electronAPI.openFile();
-      if (result?.success && result.content) {
-        try {
-          const parsed = JSON.parse(result.content);
-          if (parsed.shapes) setShapes(parsed.shapes);
-          if (parsed.docName) setDocName(parsed.docName);
-          if (parsed.docsContent) setDocsContent(parsed.docsContent);
-          if (parsed.canvasBg) {
-            const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === parsed.canvasBg);
-            if (foundBg) setCanvasBg(foundBg);
-          }
-          setSelectedId(null);
-        } catch {
-          alert('Failed to parse diagram project file.');
-        }
-      }
-    } else {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.eraser,.json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const parsed = JSON.parse(event.target.result);
-            if (parsed.shapes) setShapes(parsed.shapes);
-            if (parsed.docName) setDocName(parsed.docName);
-            if (parsed.docsContent) setDocsContent(parsed.docsContent);
-            if (parsed.canvasBg) {
-              const foundBg = CANVAS_BACKGROUNDS.find((b) => b.id === parsed.canvasBg);
-              if (foundBg) setCanvasBg(foundBg);
-            }
-            setSelectedId(null);
-          } catch {
-            alert('Invalid project file.');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-  };
+  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew]);
 
   const handleExportPNG = async () => {
     const canvas = document.querySelector('canvas');
@@ -528,6 +751,8 @@ export default function App() {
       setSelectedIds([]);
       if (template.docs) setDocsContent(template.docs);
       if (template.title) setDocName(template.title);
+      setIsDirty(true);
+      setCurrentFilePath(null);
       viewport.resetView();
       setIsTemplatesOpen(false);
       return;
@@ -563,6 +788,7 @@ export default function App() {
           prev ? `${prev}\n\n---\n\n${template.docs}` : template.docs
         );
       }
+      setIsDirty(true);
       setIsTemplatesOpen(false);
     }
   };
@@ -570,7 +796,8 @@ export default function App() {
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear the entire whiteboard?')) {
       setShapes([]);
-      setSelectedId(null);
+      setSelectedIds([]);
+      setIsDirty(true);
     }
   };
 
@@ -578,9 +805,19 @@ export default function App() {
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-white select-none">
       <Header
         docName={docName}
-        setDocName={setDocName}
+        setDocName={(name) => {
+          setDocName(name);
+          setIsDirty(true);
+        }}
+        isDirty={isDirty}
+        currentFilePath={currentFilePath}
+        onNew={handleNew}
         onSave={handleSave}
+        onSaveAs={handleSaveAs}
         onOpen={handleOpen}
+        onOpenRecent={handleOpenRecent}
+        recentFiles={recentFiles}
+        onClearRecent={handleClearRecent}
         onExport={handleExportPNG}
         onCopyImage={handleCopyImage}
         onClear={handleClear}
@@ -588,8 +825,38 @@ export default function App() {
         isDocsOpen={isDocsOpen}
         setIsDocsOpen={setIsDocsOpen}
         canvasBg={canvasBg}
-        setCanvasBg={setCanvasBg}
+        setCanvasBg={(bg) => {
+          setCanvasBg(bg);
+          setIsDirty(true);
+        }}
       />
+
+      {/* Autosave Recovery Banner */}
+      {autosaveCandidate && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/92 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 backdrop-blur-md text-xs animate-in fade-in slide-in-from-top-2 duration-150 select-none">
+          <div className="flex items-center gap-1.5 text-amber-400 font-medium">
+            <Clock size={14} />
+            <span>Autosave Backup Found</span>
+          </div>
+          <span className="text-zinc-300">
+            Recover session from <strong>{new Date(autosaveCandidate.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>?
+          </span>
+          <div className="flex items-center gap-1.5 ml-1.5">
+            <button
+              onClick={restoreAutosave}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-xs transition-colors cursor-pointer"
+            >
+              Restore
+            </button>
+            <button
+              onClick={dismissAutosave}
+              className="px-2 py-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1 relative overflow-hidden w-full h-[calc(100vh-48px)]">
         {isDocsOpen && (
