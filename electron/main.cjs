@@ -96,6 +96,11 @@ function setupNativeMenu() {
       label: "File",
       submenu: [
         {
+          label: "New Whiteboard",
+          accelerator: "CmdOrCtrl+N",
+          click: () => mainWindow?.webContents.send("menu-new-file"),
+        },
+        {
           label: "Open Project...",
           accelerator: "CmdOrCtrl+O",
           click: () => mainWindow?.webContents.send("menu-open-file"),
@@ -105,6 +110,12 @@ function setupNativeMenu() {
           accelerator: "CmdOrCtrl+S",
           click: () => mainWindow?.webContents.send("menu-save-file"),
         },
+        {
+          label: "Save Project As...",
+          accelerator: "CmdOrCtrl+Shift+S",
+          click: () => mainWindow?.webContents.send("menu-save-as-file"),
+        },
+        { type: "separator" },
         {
           label: "Export PNG Image...",
           accelerator: "CmdOrCtrl+Shift+E",
@@ -161,31 +172,36 @@ function setupNativeMenu() {
 // ==========================================
 
 // 1. Save Whiteboard Project File (.eraser / .json)
-ipcMain.handle("save-file", async (event, { content, defaultName = "diagram.eraser" }) => {
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    title: "Save Diagram Project",
-    defaultPath: defaultName,
-    filters: [
-      { name: "Eraser Whiteboard (*.eraser)", extensions: ["eraser"] },
-      { name: "JSON Diagram (*.json)", extensions: ["json"] },
-      { name: "All Files", extensions: ["*"] },
-    ],
-  });
+ipcMain.handle("save-file", async (event, { content, defaultName = "diagram.eraser", filePath: existingPath, saveAs = false }) => {
+  let targetPath = existingPath;
 
-  if (canceled || !filePath) return { success: false };
+  if (!targetPath || saveAs) {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: saveAs ? "Save Diagram Project As" : "Save Diagram Project",
+      defaultPath: targetPath || defaultName,
+      filters: [
+        { name: "Eraser Whiteboard (*.eraser)", extensions: ["eraser"] },
+        { name: "JSON Diagram (*.json)", extensions: ["json"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+
+    if (canceled || !filePath) return { canceled: true, success: false };
+    targetPath = filePath;
+  }
 
   try {
-    await fs.writeFile(filePath, content, "utf-8");
+    await fs.writeFile(targetPath, content, "utf-8");
 
     // Native OS Notification
     if (Notification.isSupported()) {
       new Notification({
         title: "Diagram Saved",
-        body: `Project saved successfully to ${path.basename(filePath)}`,
+        body: `Project saved successfully to ${path.basename(targetPath)}`,
       }).show();
     }
 
-    return { success: true, filePath };
+    return { success: true, filePath: targetPath };
   } catch (err) {
     console.error("Save file error:", err);
     return { success: false, error: err.message };
@@ -203,13 +219,25 @@ ipcMain.handle("open-file", async () => {
     ],
   });
 
-  if (canceled || filePaths.length === 0) return { canceled: true };
+  if (canceled || filePaths.length === 0) return { canceled: true, success: false };
 
   try {
     const content = await fs.readFile(filePaths[0], "utf-8");
     return { success: true, filePath: filePaths[0], content };
   } catch (err) {
     console.error("Open file error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+// 2b. Read File by Specific Path (For Recent Files)
+ipcMain.handle("read-file-path", async (event, filePath) => {
+  if (!filePath) return { success: false, error: "No file path provided" };
+  try {
+    const content = await fs.readFile(filePath, "utf-8");
+    return { success: true, filePath, content };
+  } catch (err) {
+    console.error("Read file error:", err);
     return { success: false, error: err.message };
   }
 });
