@@ -271,6 +271,60 @@ ipcMain.handle("save-image", async (event, { dataUrl, defaultName = "architectur
   }
 });
 
+// 3b. Export Scalable Vector Graphic (SVG)
+ipcMain.handle("save-svg", async (event, { content, defaultName = "architecture-diagram.svg" }) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: "Export Scalable Vector Graphic (SVG)",
+    defaultPath: defaultName,
+    filters: [{ name: "Scalable Vector Graphic (*.svg)", extensions: ["svg"] }],
+  });
+
+  if (canceled || !filePath) return { success: false, canceled: true };
+
+  try {
+    await fs.writeFile(filePath, content, "utf-8");
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "SVG Exported",
+        body: `Vector SVG saved to ${path.basename(filePath)}`,
+      }).show();
+    }
+
+    return { success: true, filePath };
+  } catch (err) {
+    console.error("Export SVG error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
+// 3c. Export Technical Markdown Documentation
+ipcMain.handle("save-markdown", async (event, { content, defaultName = "architecture-notes.md" }) => {
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: "Export Markdown Documentation",
+    defaultPath: defaultName,
+    filters: [{ name: "Markdown Document (*.md)", extensions: ["md"] }],
+  });
+
+  if (canceled || !filePath) return { success: false, canceled: true };
+
+  try {
+    await fs.writeFile(filePath, content, "utf-8");
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Markdown Exported",
+        body: `Documentation saved to ${path.basename(filePath)}`,
+      }).show();
+    }
+
+    return { success: true, filePath };
+  } catch (err) {
+    console.error("Export Markdown error:", err);
+    return { success: false, error: err.message };
+  }
+});
+
 // 4. Copy PNG to System Clipboard (Native Electron Superpower!)
 ipcMain.handle("copy-image-to-clipboard", async (event, dataUrl) => {
   try {
@@ -281,6 +335,24 @@ ipcMain.handle("copy-image-to-clipboard", async (event, dataUrl) => {
       new Notification({
         title: "Copied to Clipboard",
         body: "Diagram image copied! You can paste it into Slack, Docs, etc.",
+      }).show();
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+});
+
+// 4b. Copy Text / SVG to System Clipboard
+ipcMain.handle("copy-text-to-clipboard", async (event, text) => {
+  try {
+    clipboard.writeText(text);
+
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Copied to Clipboard",
+        body: "SVG vector code / Markdown copied to clipboard!",
       }).show();
     }
 

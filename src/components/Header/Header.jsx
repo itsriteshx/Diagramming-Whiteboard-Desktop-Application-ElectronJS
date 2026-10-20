@@ -172,6 +172,20 @@ export function Header({
                 <span className="text-[10px] text-zinc-400 font-mono">⇧⌘S</span>
               </button>
 
+              <button
+                onClick={() => {
+                  onExport?.();
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Download size={15} />
+                  <span>Export Diagram & Docs...</span>
+                </div>
+                <span className="text-[10px] text-zinc-400 font-mono">⇧⌘E</span>
+              </button>
+
               {currentFilePath && (
                 <button
                   onClick={handleRevealInFolder}
@@ -314,10 +328,10 @@ export function Header({
         <button
           onClick={onExport}
           className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
-          title="Export Diagram as PNG"
+          title="Export Diagram & Docs (PNG, SVG, MD, JSON)"
         >
           <Download size={14} />
-          <span>Export PNG</span>
+          <span>Export</span>
         </button>
       </div>
     </header>

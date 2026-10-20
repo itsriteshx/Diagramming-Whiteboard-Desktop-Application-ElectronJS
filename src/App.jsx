@@ -20,6 +20,7 @@ import { Canvas } from './components/Canvas/Canvas';
 import { PropertiesPanel } from './components/PropertiesPanel/PropertiesPanel';
 import { DocsPanel } from './components/DocsPanel/DocsPanel';
 import { TemplatesModal } from './components/TemplatesModal/TemplatesModal';
+import { ExportModal } from './components/ExportModal/ExportModal';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
@@ -179,6 +180,7 @@ export default function App() {
   const [docsContent, setDocsContent] = useState(INITIAL_DOCS);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
@@ -568,6 +570,10 @@ export default function App() {
     setRecentFiles([]);
   }, []);
 
+  const handleOpenExport = useCallback(() => {
+    setIsExportOpen(true);
+  }, []);
+
   // Listen to native macOS/Windows top menu actions
   useEffect(() => {
     if (window.electronAPI) {
@@ -575,9 +581,9 @@ export default function App() {
       window.electronAPI.onMenuSave?.(handleSave);
       window.electronAPI.onMenuSaveAs?.(handleSaveAs);
       window.electronAPI.onMenuOpen?.(handleOpen);
-      window.electronAPI.onMenuExport?.(handleExportPNG);
+      window.electronAPI.onMenuExport?.(handleOpenExport);
     }
-  }, [handleNew, handleSave, handleSaveAs, handleOpen]);
+  }, [handleNew, handleSave, handleSaveAs, handleOpen, handleOpenExport]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -606,6 +612,12 @@ export default function App() {
       if ((modKey && e.key.toLowerCase() === 'y') || (modKey && e.shiftKey && e.key.toLowerCase() === 'z')) {
         e.preventDefault();
         redo();
+        return;
+      }
+
+      if (modKey && e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        handleOpenExport();
         return;
       }
 
@@ -818,7 +830,7 @@ export default function App() {
         onOpenRecent={handleOpenRecent}
         recentFiles={recentFiles}
         onClearRecent={handleClearRecent}
-        onExport={handleExportPNG}
+        onExport={handleOpenExport}
         onCopyImage={handleCopyImage}
         onClear={handleClear}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
@@ -1035,6 +1047,16 @@ export default function App() {
         isOpen={isTemplatesOpen}
         onClose={() => setIsTemplatesOpen(false)}
         onLoadTemplate={handleLoadTemplate}
+      />
+
+      <ExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        shapes={shapes}
+        selectedIds={selectedIds}
+        docName={docName}
+        docsContent={docsContent}
+        canvasBg={canvasBg}
       />
     </div>
   );
