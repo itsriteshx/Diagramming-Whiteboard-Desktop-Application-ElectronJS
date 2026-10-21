@@ -16,6 +16,7 @@ import {
   ExternalLink,
   Search,
   Command,
+  HelpCircle,
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
@@ -36,6 +37,7 @@ export function Header({
   onClear,
   onOpenTemplates,
   onOpenCommandPalette,
+  onOpenShortcuts,
   isDocsOpen,
   setIsDocsOpen,
   canvasBg,
@@ -129,6 +131,21 @@ export function Header({
                   <span>Command Palette...</span>
                 </div>
                 <span className="text-[10px] text-zinc-400 font-mono">⌘K</span>
+              </button>
+
+              {/* Keyboard Shortcuts */}
+              <button
+                onClick={() => {
+                  onOpenShortcuts?.();
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 font-medium transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <HelpCircle size={15} />
+                  <span>Keyboard Shortcuts...</span>
+                </div>
+                <span className="text-[10px] text-zinc-400 font-mono">?</span>
               </button>
 
               <div className="w-full h-px bg-zinc-100 my-0.5" />
@@ -332,6 +349,14 @@ export function Header({
         >
           <LayoutTemplate size={14} className="text-indigo-500" />
           <span>Templates</span>
+        </button>
+
+        <button
+          onClick={onOpenShortcuts}
+          className="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
+          title="Keyboard Shortcuts (? or ⌘/)"
+        >
+          <HelpCircle size={15} />
         </button>
 
         <button

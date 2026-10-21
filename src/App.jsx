@@ -22,6 +22,7 @@ import { DocsPanel } from './components/DocsPanel/DocsPanel';
 import { TemplatesModal } from './components/TemplatesModal/TemplatesModal';
 import { ExportModal } from './components/ExportModal/ExportModal';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
+import { ShortcutsModal } from './components/ShortcutsModal/ShortcutsModal';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
@@ -183,6 +184,7 @@ export default function App() {
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
@@ -600,7 +602,13 @@ export default function App() {
         return;
       }
 
-      if (isPaletteOpen) return;
+      if (e.key === '?' || (modKey && e.key === '/')) {
+        e.preventDefault();
+        setIsShortcutsOpen((prev) => !prev);
+        return;
+      }
+
+      if (isPaletteOpen || isShortcutsOpen) return;
 
       if (e.altKey && e.shiftKey) {
         if (e.key === 'ArrowLeft') { e.preventDefault(); handleAlign('left'); return; }
@@ -705,7 +713,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew, handleOpenExport, isPaletteOpen]);
+  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew, handleOpenExport, isPaletteOpen, isShortcutsOpen]);
 
   const handleExportPNG = async () => {
     const canvas = document.querySelector('canvas');
@@ -845,6 +853,7 @@ export default function App() {
         onClear={handleClear}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenCommandPalette={() => setIsPaletteOpen(true)}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
         isDocsOpen={isDocsOpen}
         setIsDocsOpen={setIsDocsOpen}
         canvasBg={canvasBg}
@@ -1092,6 +1101,12 @@ export default function App() {
         zoomIn={viewport.zoomIn}
         zoomOut={viewport.zoomOut}
         resetView={viewport.resetView}
+        onOpenShortcuts={() => setIsShortcutsOpen(true)}
+      />
+
+      <ShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
     </div>
   );
