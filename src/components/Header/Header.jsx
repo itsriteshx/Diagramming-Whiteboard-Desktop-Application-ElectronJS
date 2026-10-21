@@ -14,6 +14,8 @@ import {
   FileDown,
   Clock,
   ExternalLink,
+  Search,
+  Command,
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
@@ -33,6 +35,7 @@ export function Header({
   onCopyImage,
   onClear,
   onOpenTemplates,
+  onOpenCommandPalette,
   isDocsOpen,
   setIsDocsOpen,
   canvasBg,
@@ -111,6 +114,21 @@ export function Header({
                 <span className="text-[10px] bg-indigo-100/70 text-indigo-700 px-1.5 py-0.5 rounded-md">
                   Presets
                 </span>
+              </button>
+
+              {/* Command Palette */}
+              <button
+                onClick={() => {
+                  onOpenCommandPalette?.();
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 font-medium transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Command size={15} />
+                  <span>Command Palette...</span>
+                </div>
+                <span className="text-[10px] text-zinc-400 font-mono">⌘K</span>
               </button>
 
               <div className="w-full h-px bg-zinc-100 my-0.5" />
@@ -291,6 +309,19 @@ export function Header({
           ) : null}
         </div>
       </div>
+
+      {/* Center Spotlight Command Palette Button */}
+      <button
+        onClick={onOpenCommandPalette}
+        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/80 hover:border-zinc-300 bg-zinc-50/70 hover:bg-zinc-100/80 text-xs text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer shadow-2xs"
+        title="Search commands, tools & templates (Cmd+K)"
+      >
+        <Search size={13} className="text-zinc-400" />
+        <span className="font-normal text-zinc-500">Search actions & tools...</span>
+        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white border border-zinc-200 text-zinc-500 shadow-2xs">
+          ⌘K
+        </kbd>
+      </button>
 
       {/* Right Actions Toolbar */}
       <div className="flex items-center gap-2">

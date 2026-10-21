@@ -21,6 +21,7 @@ import { PropertiesPanel } from './components/PropertiesPanel/PropertiesPanel';
 import { DocsPanel } from './components/DocsPanel/DocsPanel';
 import { TemplatesModal } from './components/TemplatesModal/TemplatesModal';
 import { ExportModal } from './components/ExportModal/ExportModal';
+import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
@@ -181,6 +182,7 @@ export default function App() {
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
 
@@ -592,6 +594,14 @@ export default function App() {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const modKey = isMac ? e.metaKey : e.ctrlKey;
 
+      if (modKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsPaletteOpen((prev) => !prev);
+        return;
+      }
+
+      if (isPaletteOpen) return;
+
       if (e.altKey && e.shiftKey) {
         if (e.key === 'ArrowLeft') { e.preventDefault(); handleAlign('left'); return; }
         if (e.key === 'ArrowRight') { e.preventDefault(); handleAlign('right'); return; }
@@ -688,14 +698,14 @@ export default function App() {
         case 'g': if (!modKey) setActiveTool(TOOLS.TRIANGLE); break;
         case 'x': setActiveTool(TOOLS.HEXAGON); break;
         case 'q': setActiveTool(TOOLS.PARALLELOGRAM); break;
-        case 'k': setActiveTool(TOOLS.STAR); break;
+        case 'k': if (!modKey) setActiveTool(TOOLS.STAR); break;
         default: break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew]);
+  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew, handleOpenExport, isPaletteOpen]);
 
   const handleExportPNG = async () => {
     const canvas = document.querySelector('canvas');
@@ -834,6 +844,7 @@ export default function App() {
         onCopyImage={handleCopyImage}
         onClear={handleClear}
         onOpenTemplates={() => setIsTemplatesOpen(true)}
+        onOpenCommandPalette={() => setIsPaletteOpen(true)}
         isDocsOpen={isDocsOpen}
         setIsDocsOpen={setIsDocsOpen}
         canvasBg={canvasBg}
@@ -1057,6 +1068,30 @@ export default function App() {
         docName={docName}
         docsContent={docsContent}
         canvasBg={canvasBg}
+      />
+
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        setActiveTool={setActiveTool}
+        onNew={handleNew}
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
+        onOpen={handleOpen}
+        onExport={handleOpenExport}
+        onClear={handleClear}
+        onOpenTemplates={() => setIsTemplatesOpen(true)}
+        onLoadTemplate={handleLoadTemplate}
+        isDocsOpen={isDocsOpen}
+        setIsDocsOpen={setIsDocsOpen}
+        canvasBg={canvasBg}
+        setCanvasBg={(bg) => {
+          setCanvasBg(bg);
+          setIsDirty(true);
+        }}
+        zoomIn={viewport.zoomIn}
+        zoomOut={viewport.zoomOut}
+        resetView={viewport.resetView}
       />
     </div>
   );
