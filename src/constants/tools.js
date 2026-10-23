@@ -20,42 +20,53 @@ export const TOOLS = {
   TRAPEZOID: 'trapezoid',
   CUBE: 'cube',
   CONE: 'cone',
+  LASER: 'laser',
+  BROWSER: 'browser',
+  UI_BUTTON: 'ui_button',
+  UI_INPUT: 'ui_input',
+  IMAGE_PLACEHOLDER: 'image_placeholder',
+  TOGGLE_SWITCH: 'toggle_switch',
 };
 
 export const STROKE_COLORS = [
-  '#1e1e1e',
-  '#e03131',
-  '#2f9e44',
-  '#1971c2',
-  '#f08c00',
-  '#868e96',
+  '#0f172a', // Slate 900
+  '#4f46e5', // Indigo 600
+  '#0284c7', // Sky 600
+  '#059669', // Emerald 600
+  '#d97706', // Amber 600
+  '#e11d48', // Rose 600
+  '#7c3aed', // Purple 600
+  '#64748b', // Slate 500
 ];
 
 export const FILL_COLORS = [
   'transparent',
-  '#fecdd3',
-  '#bbf7d0',
-  '#bfdbfe',
-  '#fef08a',
-  '#e9d5ff',
-  '#f4f4f5',
+  '#e0e7ff', // Indigo 100
+  '#e0f2fe', // Sky 100
+  '#d1fae5', // Emerald 100
+  '#fef3c7', // Amber 100
+  '#ffe4e6', // Rose 100
+  '#ede9fe', // Purple 100
+  '#f1f5f9', // Slate 100
+  '#0f172a', // Slate 900
 ];
 
 export const CANVAS_BACKGROUNDS = [
   { id: 'white', label: 'Clean White', color: '#ffffff', dotColor: '#e5e7eb' },
   { id: 'cream', label: 'Warm Light', color: '#fbfbf9', dotColor: '#e2e2de' },
-  { id: 'gray', label: 'Subtle Gray', color: '#f3f4f6', dotColor: '#d1d5db' },
-  { id: 'dark', label: 'Dark Mode', color: '#121214', dotColor: '#27272a' },
+  { id: 'gray', label: 'Subtle Gray', color: '#f8fafc', dotColor: '#cbd5e1' },
+  { id: 'dark', label: 'Dark Studio', color: '#09090b', dotColor: '#27272a' },
 ];
 
 export const DEFAULT_STYLE = {
-  strokeColor: '#1e1e1e',
+  strokeColor: '#0f172a',
   fillColor: 'transparent',
   strokeWidth: 2,
   strokeStyle: 'solid',
   opacity: 100,
+  cornerRadius: 8,
   fontSize: 16,
   fontFamily: 'Inter, sans-serif',
   textAlign: 'center',
-  textColor: '#1e1e1e',
+  textColor: '#0f172a',
 };

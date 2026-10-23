@@ -297,6 +297,221 @@ export function drawCone(ctx, shape) {
   ctx.restore();
 }
 
+export function drawBrowserWindow(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const headerHeight = Math.min(34, Math.max(24, Math.abs(height) * 0.14));
+  const radius = Math.min(10, Math.abs(width) / 4, Math.abs(height) / 4);
+
+  // Outer Window Frame
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.rect(x, y, width, height);
+  }
+  ctx.fillStyle = shape.fillColor && shape.fillColor !== 'transparent' ? shape.fillColor : '#ffffff';
+  ctx.fill();
+  ctx.stroke();
+
+  // Header Bar Top Background
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, headerHeight, [radius, radius, 0, 0]);
+  } else {
+    ctx.rect(x, y, width, headerHeight);
+  }
+  ctx.fillStyle = '#f1f5f9';
+  ctx.fill();
+  ctx.restore();
+
+  // Header bottom border line
+  ctx.beginPath();
+  ctx.moveTo(x, y + headerHeight);
+  ctx.lineTo(x + width, y + headerHeight);
+  ctx.stroke();
+
+  // Window Traffic Light Dots (Close, Minimize, Expand)
+  const dotRadius = 3.5;
+  const dotY = y + headerHeight / 2;
+  const dotColors = ['#ef4444', '#f59e0b', '#10b981'];
+  dotColors.forEach((color, i) => {
+    ctx.beginPath();
+    ctx.arc(x + 14 + i * 11, dotY, dotRadius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+  });
+
+  // URL / Address Pill in header
+  if (Math.abs(width) > 160) {
+    const urlX = x + 54;
+    const urlW = Math.max(60, width - 100);
+    const urlH = Math.max(14, headerHeight - 12);
+    const urlY = y + (headerHeight - urlH) / 2;
+    ctx.save();
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(urlX, urlY, urlW, urlH, urlH / 2);
+    } else {
+      ctx.rect(urlX, urlY, urlW, urlH);
+    }
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#64748b';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const displayUrl = shape.url || (shape.text ? `https://${shape.text.toLowerCase().replace(/[^a-z0-9]/g, '')}.com` : 'https://myapp.dev');
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(urlX + 4, urlY, urlW - 8, urlH);
+    ctx.clip();
+    ctx.fillText(displayUrl, urlX + 8, urlY + urlH / 2);
+    ctx.restore();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+export function drawUiButton(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const radius = shape.cornerRadius !== undefined ? shape.cornerRadius : Math.min(8, Math.abs(height) / 2);
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.rect(x, y, width, height);
+  }
+  ctx.fillStyle = shape.fillColor && shape.fillColor !== 'transparent' ? shape.fillColor : '#4f46e5';
+  ctx.fill();
+  ctx.stroke();
+
+  // Button text
+  const label = shape.text || 'Action Button';
+  ctx.fillStyle = shape.textColor || (shape.fillColor && shape.fillColor !== 'transparent' && shape.fillColor !== '#ffffff' ? '#ffffff' : '#0f172a');
+  ctx.font = `600 ${shape.fontSize || 13}px ${shape.fontFamily || 'Inter, sans-serif'}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + width / 2, y + height / 2);
+  ctx.restore();
+}
+
+export function drawUiInput(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const radius = shape.cornerRadius !== undefined ? shape.cornerRadius : 6;
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.rect(x, y, width, height);
+  }
+  ctx.fillStyle = shape.fillColor && shape.fillColor !== 'transparent' ? shape.fillColor : '#ffffff';
+  ctx.fill();
+  ctx.stroke();
+
+  // Placeholder / input text
+  const placeholder = shape.text || 'Enter text...';
+  ctx.fillStyle = shape.textColor || '#94a3b8';
+  ctx.font = `400 ${shape.fontSize || 13}px ${shape.fontFamily || 'Inter, sans-serif'}`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  const textX = x + 10;
+  const textY = y + height / 2;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x + 4, y + 2, width - 8, height - 4);
+  ctx.clip();
+  ctx.fillText(placeholder, textX, textY);
+  ctx.restore();
+  ctx.restore();
+}
+
+export function drawImagePlaceholder(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const radius = 6;
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.rect(x, y, width, height);
+  }
+  ctx.fillStyle = shape.fillColor && shape.fillColor !== 'transparent' ? shape.fillColor : '#f8fafc';
+  ctx.fill();
+  ctx.stroke();
+
+  // Diagonal crosses
+  ctx.save();
+  ctx.strokeStyle = shape.strokeColor ? `${shape.strokeColor}33` : '#cbd5e1';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + width, y + height);
+  ctx.moveTo(x + width, y);
+  ctx.lineTo(x, y + height);
+  ctx.stroke();
+
+  // Center picture icon badge
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 13, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = shape.strokeColor || '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 6, cy + 4);
+  ctx.lineTo(cx - 2, cy - 3);
+  ctx.lineTo(cx + 2, cy + 2);
+  ctx.lineTo(cx + 4, cy - 1);
+  ctx.lineTo(cx + 7, cy + 5);
+  ctx.closePath();
+  ctx.fillStyle = '#94a3b8';
+  ctx.fill();
+
+  ctx.restore();
+  ctx.restore();
+}
+
+export function drawToggleSwitch(ctx, shape) {
+  const { x, y, width, height } = shape;
+  const radius = Math.abs(height) / 2;
+  const isOn = shape.active !== undefined ? shape.active : true;
+
+  ctx.save();
+  ctx.beginPath();
+  if (typeof ctx.roundRect === 'function') {
+    ctx.roundRect(x, y, width, height, radius);
+  } else {
+    ctx.rect(x, y, width, height);
+  }
+  ctx.fillStyle = isOn ? (shape.fillColor && shape.fillColor !== 'transparent' ? shape.fillColor : '#4f46e5') : '#e2e8f0';
+  ctx.fill();
+  ctx.stroke();
+
+  // Switch Thumb circle
+  const thumbR = Math.max(3, radius - 3);
+  const thumbX = isOn ? x + width - radius : x + radius;
+  const thumbY = y + height / 2;
+
+  ctx.beginPath();
+  ctx.arc(thumbX, thumbY, thumbR, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.restore();
+}
+
 export function drawShape(ctx, shape) {
   ctx.save();
   ctx.strokeStyle = shape.strokeColor || '#1e1e1e';
@@ -319,12 +534,20 @@ export function drawShape(ctx, shape) {
   const { x, y, width, height } = shape;
 
   switch (shape.type) {
-    case 'rectangle':
+    case 'rectangle': {
+      const radius = shape.cornerRadius !== undefined
+        ? Math.min(Math.max(0, shape.cornerRadius), Math.abs(width) / 2, Math.abs(height) / 2)
+        : 8;
       ctx.beginPath();
-      ctx.roundRect(x, y, width, height, 8);
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, width, height, radius);
+      } else {
+        ctx.rect(x, y, width, height);
+      }
       if (shape.fillColor && shape.fillColor !== 'transparent') ctx.fill();
       ctx.stroke();
       break;
+    }
 
     case 'ellipse':
       ctx.beginPath();
@@ -441,11 +664,39 @@ export function drawShape(ctx, shape) {
       break;
     }
 
+    case 'browser':
+      drawBrowserWindow(ctx, shape);
+      break;
+
+    case 'ui_button':
+      drawUiButton(ctx, shape);
+      break;
+
+    case 'ui_input':
+      drawUiInput(ctx, shape);
+      break;
+
+    case 'image_placeholder':
+      drawImagePlaceholder(ctx, shape);
+      break;
+
+    case 'toggle_switch':
+      drawToggleSwitch(ctx, shape);
+      break;
+
     default:
       break;
   }
 
-  if (shape.text && shape.type !== 'text') {
+  const isSelfText =
+    shape.type === 'text' ||
+    shape.type === 'ui_button' ||
+    shape.type === 'ui_input' ||
+    shape.type === 'browser' ||
+    shape.type === 'image_placeholder' ||
+    shape.type === 'toggle_switch';
+
+  if (shape.text && !isSelfText) {
     ctx.setLineDash([]);
     ctx.fillStyle = shape.textColor || shape.strokeColor || '#1e1e1e';
     ctx.font = `600 ${shape.fontSize || 15}px ${shape.fontFamily || 'Inter, sans-serif'}`;
@@ -453,16 +704,26 @@ export function drawShape(ctx, shape) {
     ctx.textBaseline = 'middle';
 
     const textX =
-      shape.textAlign === 'left'  ? x + 12 :
+      shape.textAlign === 'left' ? x + 12 :
       shape.textAlign === 'right' ? x + width - 12 :
       x + width / 2;
+
+    let textY = y + height / 2;
+    if (shape.type === 'database') {
+      const ry = Math.min(20, Math.abs(height) / 4);
+      textY = y + height / 2 + ry * 0.45;
+    } else if (shape.type === 'triangle') {
+      textY = y + height * 0.6;
+    } else if (shape.type === 'cone') {
+      textY = y + height * 0.55;
+    }
 
     const padding = 8;
     ctx.save();
     ctx.beginPath();
     ctx.rect(x + padding, y + padding, Math.abs(width) - padding * 2, Math.abs(height) - padding * 2);
     ctx.clip();
-    ctx.fillText(shape.text, textX, y + height / 2);
+    ctx.fillText(shape.text, textX, textY);
     ctx.restore();
   }
 

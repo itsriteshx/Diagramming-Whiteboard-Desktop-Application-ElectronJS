@@ -1,5 +1,287 @@
 export const ARCHITECTURE_TEMPLATES = [
   {
+    id: 'saas_wireframe',
+    title: 'SaaS Web App & Analytics Dashboard',
+    category: 'Wireframes',
+    badge: 'Desktop UI Kit',
+    icon: 'Layout',
+    description: 'High-fidelity wireframe suite with browser frame, top navbar, KPI metric cards, data chart placeholder, and invite form.',
+    tags: ['Wireframe', 'Browser UI', 'Dashboard', 'Form Inputs', 'Buttons'],
+    nodeCount: 16,
+    shapes: [
+      // Browser Window Frame
+      {
+        id: 'wf_browser',
+        type: 'browser',
+        x: 60,
+        y: 40,
+        width: 900,
+        height: 580,
+        strokeColor: '#cbd5e1',
+        fillColor: '#ffffff',
+        strokeWidth: 2,
+        url: 'https://app.cloudpulse.io/dashboard',
+        text: 'CloudPulse Dashboard',
+      },
+      // Top Navigation Bar
+      {
+        id: 'wf_nav_bg',
+        type: 'rectangle',
+        x: 62,
+        y: 74,
+        width: 896,
+        height: 52,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 0,
+      },
+      {
+        id: 'wf_logo',
+        type: 'text',
+        x: 84,
+        y: 91,
+        text: '⚡ CloudPulse Analytics',
+        strokeColor: '#4f46e5',
+        fontSize: 15,
+        fontFamily: 'Inter, sans-serif',
+      },
+      {
+        id: 'wf_search',
+        type: 'ui_input',
+        x: 340,
+        y: 82,
+        width: 250,
+        height: 36,
+        strokeColor: '#cbd5e1',
+        fillColor: '#f8fafc',
+        strokeWidth: 1.5,
+        text: 'Search metrics, logs & queries…',
+      },
+      {
+        id: 'wf_nav_btn',
+        type: 'ui_button',
+        x: 740,
+        y: 82,
+        width: 120,
+        height: 36,
+        strokeColor: '#4f46e5',
+        fillColor: '#4f46e5',
+        strokeWidth: 1.5,
+        text: '+ New Project',
+        textColor: '#ffffff',
+        cornerRadius: 8,
+      },
+      {
+        id: 'wf_toggle',
+        type: 'toggle_switch',
+        x: 885,
+        y: 88,
+        width: 48,
+        height: 24,
+        strokeColor: '#4f46e5',
+        fillColor: '#4f46e5',
+        strokeWidth: 1.5,
+        active: true,
+      },
+      // Left Navigation Sidebar
+      {
+        id: 'wf_sidebar_bg',
+        type: 'rectangle',
+        x: 62,
+        y: 126,
+        width: 180,
+        height: 492,
+        strokeColor: '#e2e8f0',
+        fillColor: '#f8fafc',
+        strokeWidth: 1.5,
+        cornerRadius: 0,
+      },
+      {
+        id: 'wf_side_item1',
+        type: 'rectangle',
+        x: 76,
+        y: 146,
+        width: 152,
+        height: 36,
+        strokeColor: '#4f46e5',
+        fillColor: '#e0e7ff',
+        strokeWidth: 1.5,
+        cornerRadius: 8,
+        text: '📊 Live Dashboard',
+        textColor: '#4f46e5',
+        fontSize: 13,
+      },
+      {
+        id: 'wf_side_item2',
+        type: 'rectangle',
+        x: 76,
+        y: 192,
+        width: 152,
+        height: 36,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 8,
+        text: '👥 Team Access',
+        textColor: '#64748b',
+        fontSize: 13,
+      },
+      {
+        id: 'wf_side_item3',
+        type: 'rectangle',
+        x: 76,
+        y: 238,
+        width: 152,
+        height: 36,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 8,
+        text: '⚙️ Workspace Settings',
+        textColor: '#64748b',
+        fontSize: 13,
+      },
+      // KPI Cards
+      {
+        id: 'wf_kpi_1',
+        type: 'rectangle',
+        x: 265,
+        y: 146,
+        width: 210,
+        height: 100,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 12,
+        text: 'Active Users\n48,290 (+14%)',
+        fontSize: 14,
+        textColor: '#0f172a',
+      },
+      {
+        id: 'wf_kpi_2',
+        type: 'rectangle',
+        x: 495,
+        y: 146,
+        width: 210,
+        height: 100,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 12,
+        text: 'Monthly Revenue\n$142,800 (+22%)',
+        fontSize: 14,
+        textColor: '#0f172a',
+      },
+      {
+        id: 'wf_kpi_3',
+        type: 'rectangle',
+        x: 725,
+        y: 146,
+        width: 210,
+        height: 100,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 12,
+        text: 'System Uptime\n99.98% Operational',
+        fontSize: 14,
+        textColor: '#0f172a',
+      },
+      // Analytics Chart Placeholder
+      {
+        id: 'wf_chart_box',
+        type: 'image_placeholder',
+        x: 265,
+        y: 266,
+        width: 440,
+        height: 240,
+        strokeColor: '#cbd5e1',
+        fillColor: '#f8fafc',
+        strokeWidth: 1.5,
+        text: 'Real-Time Telemetry & Throughput Chart',
+      },
+      // Team Member Invite Box
+      {
+        id: 'wf_invite_card',
+        type: 'rectangle',
+        x: 725,
+        y: 266,
+        width: 210,
+        height: 240,
+        strokeColor: '#e2e8f0',
+        fillColor: '#ffffff',
+        strokeWidth: 1.5,
+        cornerRadius: 12,
+        text: 'Quick Team Invite',
+        fontSize: 13,
+      },
+      {
+        id: 'wf_invite_input',
+        type: 'ui_input',
+        x: 742,
+        y: 330,
+        width: 176,
+        height: 38,
+        strokeColor: '#cbd5e1',
+        fillColor: '#f8fafc',
+        strokeWidth: 1.5,
+        text: 'colleague@company.com',
+      },
+      {
+        id: 'wf_invite_btn',
+        type: 'ui_button',
+        x: 742,
+        y: 385,
+        width: 176,
+        height: 38,
+        strokeColor: '#059669',
+        fillColor: '#059669',
+        strokeWidth: 1.5,
+        text: 'Send Invitation',
+        textColor: '#ffffff',
+        cornerRadius: 8,
+      },
+    ],
+    docs: `# SaaS Web App & Analytics Dashboard Wireframe Specification
+
+## 1. UX Design & Information Architecture
+This wireframe document specifies the user experience, interaction design tokens, and technical requirements for the **CloudPulse Analytics Web Application**.
+
+> [!NOTE]
+> All UI wireframe components adhere to an 8px grid system with fluid layout margins and responsive breakpoints.
+
+---
+
+## 2. Component Design Tokens
+
+| UI Component | Type | Token / Spec | State Behavior |
+| :--- | :--- | :--- | :--- |
+| **Top Navigation Bar** | Global Shell | \`height: 52px\`, \`bg: #ffffff\` | Fixed at viewport top with 1px border |
+| **Search Input** | \`<input>\` | \`width: 250px\`, \`radius: 6px\` | Shows active outline on Cmd+K focus |
+| **Primary Action Button**| \`<button>\` | \`bg: #4f46e5\`, \`radius: 8px\` | Hover shifts to indigo-700 with active press |
+| **Sidebar Navigation** | Navigation Rail | \`width: 180px\`, \`bg: #f8fafc\` | Collapse on mobile viewport (<768px) |
+| **Metric KPI Cards** | Card Container | \`radius: 12px\`, \`shadow: 0 1px 3px\` | Auto-adjust column span on resize |
+| **Telemetry Chart** | Canvas/SVG | \`aspect-ratio: 16/9\` | Renders realtime WebSocket trendline |
+
+---
+
+## 3. Responsive Breakpoints
+
+\`\`\`yaml
+Breakpoints:
+  Desktop: ">= 1440px (Full dual-column grid with expanded sidebar)"
+  Tablet:  "768px - 1439px (Collapsible sidebar, 2-column KPI cards)"
+  Mobile:  "< 768px (Single column flow, bottom tab navigation)"
+\`\`\`
+
+## 4. User Interaction Flows
+1. **Dashboard Overview**: Displays realtime active user count, monthly revenue metrics, and operational uptime status.
+2. **Global Spotlight**: Users trigger rapid search using \`Cmd + K\` to query telemetry logs or navigate projects.
+3. **Team Invitation**: Form validates RFC-5322 email syntax and issues an authenticated onboarding token via API.
+`,
+  },
+  {
     id: 'microservices',
     title: 'Microservices Cloud Architecture',
     category: 'Cloud & DevOps',

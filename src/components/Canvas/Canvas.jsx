@@ -20,12 +20,28 @@ import {
   drawMultiSelectionBox,
 } from '../../utils/renderer';
 
-const CLICK_TO_PLACE_SIZE = { width: 140, height: 90 };
+function getClickToPlaceSize(type) {
+  switch (type) {
+    case TOOLS.BROWSER:
+      return { width: 500, height: 320 };
+    case TOOLS.UI_BUTTON:
+      return { width: 140, height: 42 };
+    case TOOLS.UI_INPUT:
+      return { width: 220, height: 42 };
+    case TOOLS.IMAGE_PLACEHOLDER:
+      return { width: 180, height: 120 };
+    case TOOLS.TOGGLE_SWITCH:
+      return { width: 56, height: 28 };
+    default:
+      return { width: 140, height: 90 };
+  }
+}
 
 const PROPORTIONAL_SHAPES = new Set([
   TOOLS.RECTANGLE, TOOLS.ELLIPSE, TOOLS.DIAMOND,
   TOOLS.TRIANGLE, TOOLS.HEXAGON, TOOLS.STAR, TOOLS.PARALLELOGRAM,
   TOOLS.RIGHT_TRIANGLE, TOOLS.TRAPEZOID, TOOLS.CUBE, TOOLS.CONE, TOOLS.COORDINATE_AXIS,
+  TOOLS.BROWSER, TOOLS.UI_BUTTON, TOOLS.UI_INPUT, TOOLS.IMAGE_PLACEHOLDER, TOOLS.TOGGLE_SWITCH,
 ]);
 
 function getSelectionHandles(shape) {
@@ -699,12 +715,13 @@ export function Canvas({
     const isTiny = !isPen && Math.abs(cs.width) < 5 && Math.abs(cs.height) < 5;
 
     if (isTiny && !hasDragged.current) {
+      const placeSize = getClickToPlaceSize(cs.type);
       const placed = {
         ...cs,
-        width: CLICK_TO_PLACE_SIZE.width,
-        height: CLICK_TO_PLACE_SIZE.height,
-        x: cs.x - CLICK_TO_PLACE_SIZE.width / 2,
-        y: cs.y - CLICK_TO_PLACE_SIZE.height / 2,
+        width: placeSize.width,
+        height: placeSize.height,
+        x: cs.x - placeSize.width / 2,
+        y: cs.y - placeSize.height / 2,
       };
       setShapes(prev => [...prev, placed]);
       updateSelection([placed.id]);
@@ -802,14 +819,14 @@ export function Canvas({
         </div>
       )}
 
-      <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-white shadow-[0_8px_30px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/90 rounded-2xl p-1.5 backdrop-blur-md select-none">
-        <button onClick={zoomOut} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer" title="Zoom Out (-)"><ZoomOut size={16} /></button>
-        <button onClick={resetView} className="px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded-lg min-w-[52px] text-center transition-colors cursor-pointer" title="Reset View">{Math.round(zoom * 100)}%</button>
-        <button onClick={zoomIn} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer" title="Zoom In (+)"><ZoomIn size={16} /></button>
-        <button onClick={resetView} className="w-8 h-8 flex items-center justify-center rounded-xl hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer" title="Reset Origin"><RotateCcw size={14} /></button>
-        <div className="w-px h-4 bg-zinc-200 mx-1" />
-        <button onClick={undo} disabled={!canUndo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canUndo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Undo (Ctrl+Z)"><Undo2 size={16} /></button>
-        <button onClick={redo} disabled={!canRedo} className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${canRedo ? 'hover:bg-zinc-100 text-zinc-600 cursor-pointer active:scale-95' : 'text-zinc-300 cursor-not-allowed'}`} title="Redo (Ctrl+Y)"><Redo2 size={16} /></button>
+      <div className="absolute bottom-5 left-5 z-20 flex items-center gap-1 bg-zinc-900/90 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.25)] border border-zinc-700/60 rounded-xl p-1 select-none">
+        <button onClick={zoomOut} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-700/80 text-zinc-400 hover:text-white transition-colors cursor-pointer" title="Zoom Out (-)"><ZoomOut size={14} /></button>
+        <button onClick={resetView} className="h-7 px-2 flex items-center justify-center text-[11px] font-semibold text-zinc-200 hover:bg-zinc-700/80 rounded-lg min-w-[46px] leading-none transition-colors cursor-pointer" title="Reset View">{Math.round(zoom * 100)}%</button>
+        <button onClick={zoomIn} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-700/80 text-zinc-400 hover:text-white transition-colors cursor-pointer" title="Zoom In (+)"><ZoomIn size={14} /></button>
+        <button onClick={resetView} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-700/80 text-zinc-500 hover:text-white transition-colors cursor-pointer" title="Reset Origin"><RotateCcw size={12} /></button>
+        <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+        <button onClick={undo} disabled={!canUndo} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${canUndo ? 'hover:bg-zinc-700/80 text-zinc-400 hover:text-white cursor-pointer active:scale-95' : 'text-zinc-700 cursor-not-allowed'}`} title="Undo (Ctrl+Z)"><Undo2 size={14} /></button>
+        <button onClick={redo} disabled={!canRedo} className={`w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${canRedo ? 'hover:bg-zinc-700/80 text-zinc-400 hover:text-white cursor-pointer active:scale-95' : 'text-zinc-700 cursor-not-allowed'}`} title="Redo (Ctrl+Y)"><Redo2 size={14} /></button>
       </div>
 
       <Minimap

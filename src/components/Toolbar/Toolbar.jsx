@@ -19,6 +19,18 @@ import {
   Star,
   Sigma,
   ChevronDown,
+  ChevronUp,
+  StickyNote,
+  Server,
+  Layers,
+  Workflow,
+  Shapes,
+  Layout,
+  Globe,
+  RectangleHorizontal,
+  FormInput,
+  Image,
+  ToggleLeft,
 } from 'lucide-react';
 import { TOOLS } from '../../constants/tools';
 
@@ -79,16 +91,92 @@ function ConeIcon({ size = 18, strokeWidth = 1.75 }) {
   );
 }
 
-const MATH_TOOLS = [
-  { id: TOOLS.TRIANGLE, label: 'Triangle (G)', icon: Triangle },
-  { id: TOOLS.RIGHT_TRIANGLE, label: 'Right Triangle', icon: RightTriangleIcon },
-  { id: TOOLS.HEXAGON, label: 'Hexagon (X)', icon: Hexagon },
-  { id: TOOLS.PARALLELOGRAM, label: 'Parallelogram (Q)', icon: ParallelogramIcon },
-  { id: TOOLS.TRAPEZOID, label: 'Trapezoid', icon: TrapezoidIcon },
-  { id: TOOLS.STAR, label: 'Star (K)', icon: Star },
-  { id: TOOLS.COORDINATE_AXIS, label: 'X-Y Axis', icon: AxisIcon },
-  { id: TOOLS.CUBE, label: '3D Cube', icon: CubeIcon },
-  { id: TOOLS.CONE, label: '3D Cone', icon: ConeIcon },
+function LaserIcon({ size = 18, strokeWidth = 1.75 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="2.5" fill="#ef4444" stroke="#ef4444" />
+      <path d="M12 2 L12 6" stroke="#ef4444" />
+      <path d="M12 18 L12 22" stroke="#ef4444" />
+      <path d="M2 12 L6 12" stroke="#ef4444" />
+      <path d="M18 12 L22 12" stroke="#ef4444" />
+      <path d="M4.93 4.93 L7.76 7.76" stroke="#ef4444" />
+      <path d="M16.24 16.24 L19.07 19.07" stroke="#ef4444" />
+      <path d="M4.93 19.07 L7.76 16.24" stroke="#ef4444" />
+      <path d="M16.24 7.76 L19.07 4.93" stroke="#ef4444" />
+    </svg>
+  );
+}
+
+const DOCK_CATEGORIES = [
+  {
+    id: 'pointer',
+    label: 'Pointer',
+    icon: MousePointer2,
+    tools: [
+      { id: TOOLS.SELECT, label: 'Select & Transform', shortcut: 'V', icon: MousePointer2 },
+      { id: TOOLS.PAN, label: 'Hand / Pan Canvas', shortcut: 'H', icon: Hand },
+      { id: TOOLS.LASER, label: 'Laser Pointer', shortcut: 'W', icon: LaserIcon },
+    ],
+  },
+  {
+    id: 'shapes',
+    label: 'Shapes',
+    icon: Shapes,
+    tools: [
+      { id: TOOLS.RECTANGLE, label: 'Rectangle', shortcut: 'R', icon: Square },
+      { id: TOOLS.DIAMOND, label: 'Decision Diamond', shortcut: 'D', icon: Diamond },
+      { id: TOOLS.ELLIPSE, label: 'Ellipse / Circle', shortcut: 'O', icon: Circle },
+      { id: TOOLS.TRIANGLE, label: 'Triangle', shortcut: 'G', icon: Triangle },
+      { id: TOOLS.HEXAGON, label: 'Hexagon', shortcut: 'X', icon: Hexagon },
+      { id: TOOLS.STAR, label: 'Star', shortcut: 'K', icon: Star },
+      { id: TOOLS.PARALLELOGRAM, label: 'Parallelogram', shortcut: 'Q', icon: ParallelogramIcon },
+      { id: TOOLS.RIGHT_TRIANGLE, label: 'Right Triangle', shortcut: '', icon: RightTriangleIcon },
+      { id: TOOLS.TRAPEZOID, label: 'Trapezoid', shortcut: '', icon: TrapezoidIcon },
+    ],
+  },
+  {
+    id: 'connectors',
+    label: 'Flow',
+    icon: Workflow,
+    tools: [
+      { id: TOOLS.ARROW, label: 'Smart Arrow Connector', shortcut: 'A', icon: MoveRight },
+      { id: TOOLS.LINE, label: 'Straight Line', shortcut: 'L', icon: Minus },
+    ],
+  },
+  {
+    id: 'architecture',
+    label: 'System',
+    icon: Server,
+    tools: [
+      { id: TOOLS.DATABASE, label: 'Database Cylinder', shortcut: 'B', icon: Database },
+      { id: TOOLS.CLOUD, label: 'Cloud Infrastructure', shortcut: 'C', icon: Cloud },
+      { id: TOOLS.CUBE, label: '3D Cube / Server', shortcut: '', icon: CubeIcon },
+      { id: TOOLS.CONE, label: '3D Cone / Gateway', shortcut: '', icon: ConeIcon },
+      { id: TOOLS.COORDINATE_AXIS, label: 'X-Y Coordinate Axis', shortcut: '', icon: AxisIcon },
+    ],
+  },
+  {
+    id: 'wireframes',
+    label: 'Wireframe',
+    icon: Layout,
+    tools: [
+      { id: TOOLS.BROWSER, label: 'Browser App Frame', shortcut: '', icon: Globe },
+      { id: TOOLS.UI_BUTTON, label: 'UI Action Button', shortcut: '', icon: RectangleHorizontal },
+      { id: TOOLS.UI_INPUT, label: 'Form Input Box', shortcut: '', icon: FormInput },
+      { id: TOOLS.IMAGE_PLACEHOLDER, label: 'Image / Media Box', shortcut: '', icon: Image },
+      { id: TOOLS.TOGGLE_SWITCH, label: 'Toggle Switch UI', shortcut: '', icon: ToggleLeft },
+    ],
+  },
+  {
+    id: 'annotate',
+    label: 'Annotate',
+    icon: StickyNote,
+    tools: [
+      { id: TOOLS.PEN, label: 'Freehand Pen', shortcut: 'P', icon: Pencil },
+      { id: TOOLS.TEXT, label: 'Text Label', shortcut: 'T', icon: Type },
+      { id: TOOLS.ERASER, label: 'Eraser', shortcut: 'E', icon: Eraser },
+    ],
+  },
 ];
 
 export function Toolbar({
@@ -97,147 +185,161 @@ export function Toolbar({
   isToolLocked,
   setIsToolLocked,
 }) {
-  const [isMathOpen, setIsMathOpen] = useState(false);
-  const mathMenuRef = useRef(null);
+  const [openCategory, setOpenCategory] = useState(null);
+  const popoverRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (mathMenuRef.current && !mathMenuRef.current.contains(e.target)) {
-        setIsMathOpen(false);
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpenCategory(null);
       }
     };
-    if (isMathOpen) {
+    if (openCategory) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isMathOpen]);
+  }, [openCategory]);
 
-  const isMathActive = MATH_TOOLS.some((t) => t.id === activeTool);
+  // Find which category the current tool belongs to
+  const getToolCategory = (toolId) => {
+    return DOCK_CATEGORIES.find((cat) => cat.tools.some((t) => t.id === toolId));
+  };
 
-  const toolGroups = [
-    [
-      { id: TOOLS.PAN,    label: 'Hand / Pan (H)',  icon: Hand },
-      { id: TOOLS.SELECT, label: 'Selection (V)',    icon: MousePointer2 },
-    ],
-    [
-      { id: TOOLS.RECTANGLE, label: 'Rectangle (R)',  icon: Square },
-      { id: TOOLS.DIAMOND,   label: 'Diamond (D)',    icon: Diamond },
-      { id: TOOLS.ELLIPSE,   label: 'Ellipse (O)',    icon: Circle },
-      { id: TOOLS.ARROW,     label: 'Arrow (A)',      icon: MoveRight },
-      { id: TOOLS.LINE,      label: 'Line (L)',       icon: Minus },
-    ],
-    [
-      { id: TOOLS.PEN,    label: 'Draw / Pen (P)', icon: Pencil },
-      { id: TOOLS.TEXT,   label: 'Text (T)',        icon: Type },
-      { id: TOOLS.ERASER, label: 'Eraser (E)',      icon: Eraser },
-    ],
-    [
-      { id: TOOLS.DATABASE, label: 'Database Node (B)',    icon: Database },
-      { id: TOOLS.CLOUD,    label: 'Cloud Architecture (C)', icon: Cloud },
-    ],
-  ];
+  const activeCategory = getToolCategory(activeTool);
+
+  // Get primary tool for each category (the active one if it belongs, otherwise first)
+  const getCategoryPrimaryTool = (category) => {
+    const activeTool_ = category.tools.find((t) => t.id === activeTool);
+    if (activeTool_) return activeTool_;
+    return category.tools[0];
+  };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center bg-white shadow-[0_10px_25px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/90 rounded-2xl p-1.5 backdrop-blur-md select-none transition-all">
-      <button
-        onClick={() => setIsToolLocked(!isToolLocked)}
-        className={`w-9.5 h-9.5 flex items-center justify-center rounded-xl transition-all ${
-          isToolLocked
-            ? 'bg-indigo-50 text-indigo-600 font-medium'
-            : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
-        }`}
-        title={isToolLocked ? 'Tool Locked' : 'Tool Unlocked'}
-      >
-        {isToolLocked ? <Lock size={17} /> : <Unlock size={17} />}
-      </button>
-
-      <div className="w-px h-5 bg-zinc-200 mx-1.5" />
-
-      {toolGroups.map((group, groupIdx) => (
-        <div key={`group_${groupIdx}`} className="flex items-center gap-1">
-          {groupIdx > 0 && <div className="w-px h-5 bg-zinc-200 mx-1.5" />}
-
-          {group.map((tool) => {
-            const Icon = tool.icon;
-            const isActive = activeTool === tool.id;
-
-            return (
-              <button
-                key={tool.id}
-                onClick={() => {
-                  setActiveTool(tool.id);
-                  setIsMathOpen(false);
-                }}
-                title={tool.label}
-                className={`w-9.5 h-9.5 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-indigo-100 text-indigo-700 shadow-xs'
-                    : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 active:scale-95'
-                }`}
-              >
-                <Icon size={19} strokeWidth={isActive ? 2.2 : 1.75} />
-              </button>
-            );
-          })}
-        </div>
-      ))}
-
-      <div className="w-px h-5 bg-zinc-200 mx-1.5" />
-
-      {/* Math Geometry Dropdown */}
-      <div className="relative" ref={mathMenuRef}>
-        <button
-          onClick={() => setIsMathOpen(!isMathOpen)}
-          className={`h-9.5 px-2.5 flex items-center gap-1.5 rounded-xl transition-all cursor-pointer ${
-            isMathActive || isMathOpen
-              ? 'bg-indigo-100 text-indigo-700 shadow-xs font-semibold'
-              : 'text-zinc-700 hover:bg-zinc-100 active:scale-95'
-          }`}
-          title="Math & Geometry Tools"
-        >
-          <Sigma size={18} strokeWidth={isMathActive ? 2.3 : 1.8} />
-          <span className="text-xs font-semibold">Math</span>
-          <ChevronDown size={13} className={`transition-transform duration-150 ${isMathOpen ? 'rotate-180' : ''}`} />
-        </button>
-
-        {isMathOpen && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 w-64 bg-white border border-zinc-200 shadow-[0_16px_36px_rgba(0,0,0,0.14),0_2px_8px_rgba(0,0,0,0.06)] rounded-2xl p-2 z-50 flex flex-col gap-1.5 backdrop-blur-md animate-in fade-in zoom-in-95 duration-100">
-            <div className="px-2 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center justify-between border-b border-zinc-100 pb-1.5">
-              <div className="flex items-center gap-1.5">
-                <Sigma size={12} className="text-indigo-600" />
-                <span>Math & Geometry</span>
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 select-none" ref={popoverRef}>
+      {/* Popover Panel */}
+      {openCategory && (() => {
+        const cat = DOCK_CATEGORIES.find((c) => c.id === openCategory);
+        if (!cat) return null;
+        return (
+          <div className="absolute bottom-[66px] left-1/2 -translate-x-1/2 w-72 bg-white/95 backdrop-blur-xl border border-zinc-200/90 shadow-[0_20px_60px_rgba(0,0,0,0.18),0_4px_12px_rgba(0,0,0,0.08)] rounded-2xl p-2 animate-in fade-in slide-in-from-bottom-2 zoom-in-95 duration-150">
+            <div className="px-3 py-2 flex items-center justify-between border-b border-zinc-100 mb-1.5">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-600">
+                  <cat.icon size={12} />
+                </div>
+                <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">{cat.label}</span>
               </div>
-              <span className="text-[10px] font-normal text-zinc-400">9 Tools</span>
+              <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded-full">{cat.tools.length}</span>
             </div>
-
-            <div className="grid grid-cols-2 gap-1 max-h-[300px] overflow-y-auto">
-              {MATH_TOOLS.map((m) => {
-                const Icon = m.icon;
-                const isSelected = activeTool === m.id;
+            <div className="grid grid-cols-1 gap-0.5">
+              {cat.tools.map((tool) => {
+                const Icon = tool.icon;
+                const isActive = activeTool === tool.id;
                 return (
                   <button
-                    key={m.id}
+                    key={tool.id}
                     onClick={() => {
-                      setActiveTool(m.id);
-                      setIsMathOpen(false);
+                      setActiveTool(tool.id);
+                      setOpenCategory(null);
                     }}
-                    title={m.label}
-                    className={`flex items-center gap-2 p-2 rounded-xl text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-indigo-50 text-indigo-700 font-semibold ring-1 ring-indigo-200'
-                        : 'hover:bg-zinc-100 text-zinc-700'
+                    className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer group ${
+                      isActive
+                        ? 'bg-indigo-50/90 text-indigo-700'
+                        : 'hover:bg-zinc-100/70 text-zinc-700'
                     }`}
                   >
-                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-100 text-indigo-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                      <Icon size={15} />
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-xs'
+                          : 'bg-zinc-100 text-zinc-600 group-hover:bg-zinc-200 group-hover:text-zinc-800'
+                      }`}>
+                        <Icon size={15} strokeWidth={isActive ? 2.2 : 1.75} />
+                      </div>
+                      <span className={`text-xs truncate ${isActive ? 'text-indigo-900 font-semibold' : 'text-zinc-700 font-medium'}`}>
+                        {tool.label}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-medium truncate">{m.label}</span>
+                    {tool.shortcut && (
+                      <kbd className={`text-[10px] font-mono px-2 py-0.5 rounded-md border shrink-0 text-center min-w-[20px] ${
+                        isActive
+                          ? 'bg-indigo-100 border-indigo-200 text-indigo-700 font-bold'
+                          : 'bg-zinc-100 border-zinc-200 text-zinc-500 font-medium'
+                      }`}>
+                        {tool.shortcut}
+                      </kbd>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
-        )}
+        );
+      })()}
+
+      {/* Main Floating Dock Bar */}
+      <div className="flex items-center gap-1 bg-white/90 backdrop-blur-xl shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200/70 rounded-2xl p-1.5 transition-all">
+        {/* Tool Lock Toggle */}
+        <button
+          onClick={() => setIsToolLocked(!isToolLocked)}
+          className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+            isToolLocked
+              ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200'
+              : 'text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50'
+          }`}
+          title={isToolLocked ? 'Tool Locked — Click to Unlock' : 'Tool Unlocked — Click to Lock'}
+        >
+          {isToolLocked ? <Lock size={16} /> : <Unlock size={16} />}
+        </button>
+
+        <div className="w-px h-6 bg-zinc-200/80 mx-0.5" />
+
+        {/* Category Dock Items */}
+        {DOCK_CATEGORIES.map((cat) => {
+          const primaryTool = getCategoryPrimaryTool(cat);
+          const Icon = primaryTool.icon;
+          const isCatActive = activeCategory?.id === cat.id;
+          const isPopoverOpen = openCategory === cat.id;
+
+          return (
+            <div key={cat.id} className="relative group">
+              <button
+                onClick={() => {
+                  if (cat.tools.length === 1) {
+                    setActiveTool(cat.tools[0].id);
+                    setOpenCategory(null);
+                  } else if (isPopoverOpen) {
+                    setOpenCategory(null);
+                  } else {
+                    if (!isCatActive) {
+                      setActiveTool(primaryTool.id);
+                    }
+                    setOpenCategory(cat.id);
+                  }
+                }}
+                className={`relative w-10 h-10 flex items-center justify-center rounded-xl transition-all cursor-pointer ${
+                  isCatActive
+                    ? 'bg-indigo-100 text-indigo-700 shadow-sm'
+                    : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-800 active:scale-95'
+                }`}
+                title={`${cat.label}: ${primaryTool.label}`}
+              >
+                <Icon size={18} strokeWidth={isCatActive ? 2.2 : 1.75} />
+                {cat.tools.length > 1 && (
+                  <div className={`absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${
+                    isCatActive ? 'bg-indigo-600' : 'bg-zinc-300'
+                  }`} />
+                )}
+              </button>
+
+              {/* Tooltip */}
+              <div className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] bg-zinc-800 text-white px-2 py-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
+                {cat.label}
+                {primaryTool.shortcut && <span className="text-zinc-400 ml-1.5">{primaryTool.shortcut}</span>}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
