@@ -431,12 +431,12 @@ export function ExportModal({
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {(format === 'png' || format === 'svg' || format === 'md') && (
               <button
                 onClick={handleCopyToClipboard}
                 disabled={isExporting || targetShapes.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-zinc-200 hover:bg-white text-zinc-700 text-xs font-medium transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+                className="h-8 flex items-center gap-1.5 px-3 rounded-xl border border-zinc-200 hover:bg-white text-zinc-700 text-xs font-semibold transition-all cursor-pointer shadow-2xs disabled:opacity-50"
                 title="Copy directly to clipboard"
               >
                 {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
@@ -447,7 +447,7 @@ export function ExportModal({
             <button
               onClick={handleDownload}
               disabled={isExporting || (format !== 'md' && targetShapes.length === 0)}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              className="h-8 flex items-center gap-1.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
             >
               <Download size={14} />
               <span>Download {format.toUpperCase()}</span>

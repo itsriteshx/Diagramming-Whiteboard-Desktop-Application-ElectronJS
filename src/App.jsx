@@ -865,24 +865,24 @@ export default function App() {
 
       {/* Autosave Recovery Banner */}
       {autosaveCandidate && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/92 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 backdrop-blur-md text-xs animate-in fade-in slide-in-from-top-2 duration-150 select-none">
-          <div className="flex items-center gap-1.5 text-amber-400 font-medium">
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 backdrop-blur-md text-xs animate-in fade-in slide-in-from-top-2 duration-150 select-none">
+          <div className="flex items-center gap-1.5 text-amber-400 font-medium shrink-0">
             <Clock size={14} />
             <span>Autosave Backup Found</span>
           </div>
-          <span className="text-zinc-300">
+          <span className="text-zinc-300 leading-none">
             Recover session from <strong>{new Date(autosaveCandidate.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong>?
           </span>
-          <div className="flex items-center gap-1.5 ml-1.5">
+          <div className="flex items-center gap-1.5 ml-1 shrink-0">
             <button
               onClick={restoreAutosave}
-              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium shadow-xs transition-colors cursor-pointer"
+              className="h-6.5 px-3 flex items-center justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs leading-none shadow-xs transition-colors cursor-pointer"
             >
               Restore
             </button>
             <button
               onClick={dismissAutosave}
-              className="px-2 py-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="h-6.5 px-2.5 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white text-xs leading-none transition-colors cursor-pointer"
             >
               Dismiss
             </button>
@@ -949,7 +949,7 @@ export default function App() {
         />
 
         {selectedIds.length > 1 && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/90 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-2 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
+          <div className="absolute bottom-22 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/95 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-2 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
             <div className="flex items-center gap-2 font-medium text-zinc-200 pr-2.5 border-r border-zinc-700">
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
               <span>{isSelectionGrouped ? `Grouped (${selectedShapes.length})` : `${selectedShapes.length} items`}</span>

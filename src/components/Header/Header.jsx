@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Menu,
   BookOpen,
@@ -17,6 +17,10 @@ import {
   Search,
   Command,
   HelpCircle,
+  X,
+  ChevronRight,
+  Zap,
+  PanelLeft,
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
@@ -44,7 +48,19 @@ export function Header({
   setCanvasBg,
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showRecentSubmenu, setShowRecentSubmenu] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
 
   const handleRevealInFolder = () => {
     if (currentFilePath && window.electronAPI?.showInFolder) {
@@ -54,26 +70,44 @@ export function Header({
   };
 
   return (
-    <header className="relative z-30 h-12 px-4 flex items-center justify-between bg-white border-b border-zinc-200 select-none">
-      <div className="flex items-center gap-2.5">
-        <div className="relative">
+    <header className="relative z-30 h-12 px-3 flex items-center justify-between bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-800 border-b border-zinc-700/50 select-none">
+      {/* Left: Brand + Menu + Doc Name */}
+      <div className="flex items-center gap-2">
+        {/* Brand Mark */}
+        <div className="flex items-center gap-2 mr-1">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <Zap size={14} className="text-white" />
+          </div>
+          <span className="text-[13px] font-bold text-white tracking-tight hidden sm:block">
+            EraserBoard
+          </span>
+        </div>
+
+        <div className="w-px h-5 bg-zinc-700/60 mx-1" />
+
+        {/* Menu Button */}
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors cursor-pointer"
-            title="Menu & Settings"
+            className={`h-7 px-2 flex items-center gap-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+              isMenuOpen
+                ? 'bg-zinc-700 text-white'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            }`}
           >
-            <Menu size={19} />
+            <Menu size={14} />
+            <span>File</span>
           </button>
 
           {isMenuOpen && (
-            <div className="absolute top-12 left-0 w-72 bg-white shadow-2xl border border-zinc-200 rounded-2xl p-2.5 flex flex-col gap-1 text-xs text-zinc-700 animate-in fade-in zoom-in-95 duration-100 z-50">
-              {/* Canvas Background Selector */}
-              <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Palette size={13} />
-                <span>Canvas Background</span>
+            <div className="absolute top-9 left-0 w-72 bg-zinc-900 border border-zinc-700/80 shadow-[0_20px_60px_rgba(0,0,0,0.5)] rounded-xl p-1.5 flex flex-col gap-0.5 text-xs text-zinc-300 z-50 animate-in fade-in zoom-in-95 duration-100 backdrop-blur-xl">
+              {/* Canvas Background */}
+              <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Palette size={11} />
+                <span>Canvas Theme</span>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 p-1 mb-1">
+              <div className="grid grid-cols-2 gap-1 px-1 mb-1">
                 {CANVAS_BACKGROUNDS.map((bg) => (
                   <button
                     key={bg.id}
@@ -81,25 +115,25 @@ export function Header({
                       setCanvasBg(bg);
                       setIsMenuOpen(false);
                     }}
-                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg border text-left transition-all cursor-pointer ${
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-left transition-all cursor-pointer ${
                       canvasBg?.id === bg.id
-                        ? 'border-indigo-500 bg-indigo-50 text-indigo-700 font-medium'
-                        : 'border-zinc-200 hover:bg-zinc-50 text-zinc-700'
+                        ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/40'
+                        : 'hover:bg-zinc-800 text-zinc-400'
                     }`}
                   >
                     <div className="flex items-center gap-1.5">
                       <div
-                        className="w-3.5 h-3.5 rounded-full border border-zinc-300"
+                        className="w-3 h-3 rounded-full border border-zinc-600"
                         style={{ backgroundColor: bg.color }}
                       />
-                      <span>{bg.label}</span>
+                      <span className="text-[11px]">{bg.label}</span>
                     </div>
-                    {canvasBg?.id === bg.id && <Check size={13} />}
+                    {canvasBg?.id === bg.id && <Check size={11} />}
                   </button>
                 ))}
               </div>
 
-              <div className="w-full h-px bg-zinc-100 my-0.5" />
+              <div className="w-full h-px bg-zinc-800 my-0.5" />
 
               {/* Templates */}
               <button
@@ -107,13 +141,13 @@ export function Header({
                   onOpenTemplates?.();
                   setIsMenuOpen(false);
                 }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-indigo-50 text-indigo-700 font-medium transition-colors cursor-pointer"
+                className="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-indigo-500/15 text-indigo-400 font-medium transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <LayoutTemplate size={15} />
-                  <span>Architecture Templates...</span>
+                <div className="flex items-center gap-2">
+                  <LayoutTemplate size={14} />
+                  <span>Architecture Templates</span>
                 </div>
-                <span className="text-[10px] bg-indigo-100/70 text-indigo-700 px-1.5 py-0.5 rounded-md">
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded-md">
                   Presets
                 </span>
               </button>
@@ -124,123 +158,108 @@ export function Header({
                   onOpenCommandPalette?.();
                   setIsMenuOpen(false);
                 }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 font-medium transition-colors cursor-pointer"
+                className="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <Command size={15} />
-                  <span>Command Palette...</span>
+                <div className="flex items-center gap-2">
+                  <Command size={14} />
+                  <span>Command Palette</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⌘K</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⌘K</kbd>
               </button>
 
-              {/* Keyboard Shortcuts */}
+              {/* Shortcuts */}
               <button
                 onClick={() => {
                   onOpenShortcuts?.();
                   setIsMenuOpen(false);
                 }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 font-medium transition-colors cursor-pointer"
+                className="flex items-center justify-between px-2.5 py-2 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <HelpCircle size={15} />
-                  <span>Keyboard Shortcuts...</span>
+                <div className="flex items-center gap-2">
+                  <HelpCircle size={14} />
+                  <span>Keyboard Shortcuts</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">?</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">?</kbd>
               </button>
 
-              <div className="w-full h-px bg-zinc-100 my-0.5" />
+              <div className="w-full h-px bg-zinc-800 my-0.5" />
 
-              {/* Native File Actions */}
+              {/* File Operations */}
               <button
-                onClick={() => {
-                  onNew?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                onClick={() => { onNew?.(); setIsMenuOpen(false); }}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <FilePlus size={15} />
+                <div className="flex items-center gap-2">
+                  <FilePlus size={14} />
                   <span>New Whiteboard</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⌘N</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⌘N</kbd>
               </button>
 
               <button
-                onClick={() => {
-                  onOpen?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                onClick={() => { onOpen?.(); setIsMenuOpen(false); }}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <FolderOpen size={15} />
-                  <span>Open Project...</span>
+                <div className="flex items-center gap-2">
+                  <FolderOpen size={14} />
+                  <span>Open Project</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⌘O</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⌘O</kbd>
               </button>
 
               <button
-                onClick={() => {
-                  onSave?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                onClick={() => { onSave?.(); setIsMenuOpen(false); }}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <Save size={15} />
-                  <span>Save Project</span>
+                <div className="flex items-center gap-2">
+                  <Save size={14} />
+                  <span>Save</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⌘S</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⌘S</kbd>
               </button>
 
               <button
-                onClick={() => {
-                  onSaveAs?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                onClick={() => { onSaveAs?.(); setIsMenuOpen(false); }}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <FileDown size={15} />
-                  <span>Save Project As...</span>
+                <div className="flex items-center gap-2">
+                  <FileDown size={14} />
+                  <span>Save As...</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⇧⌘S</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⇧⌘S</kbd>
               </button>
 
               <button
-                onClick={() => {
-                  onExport?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-700 transition-colors cursor-pointer"
+                onClick={() => { onExport?.(); setIsMenuOpen(false); }}
+                className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-300 transition-colors cursor-pointer"
               >
-                <div className="flex items-center gap-2.5">
-                  <Download size={15} />
-                  <span>Export Diagram & Docs...</span>
+                <div className="flex items-center gap-2">
+                  <Download size={14} />
+                  <span>Export Diagram & Docs</span>
                 </div>
-                <span className="text-[10px] text-zinc-400 font-mono">⇧⌘E</span>
+                <kbd className="text-[10px] text-zinc-500 font-mono">⇧⌘E</kbd>
               </button>
 
               {currentFilePath && (
                 <button
                   onClick={handleRevealInFolder}
-                  className="flex items-center justify-between px-3 py-2 rounded-xl hover:bg-zinc-100 text-zinc-600 transition-colors cursor-pointer"
+                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 transition-colors cursor-pointer"
                   title={currentFilePath}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <ExternalLink size={15} />
+                  <div className="flex items-center gap-2">
+                    <ExternalLink size={14} />
                     <span>Reveal in Finder</span>
                   </div>
                 </button>
               )}
 
-              {/* Recent Files Submenu */}
+              {/* Recent Files */}
               {recentFiles && recentFiles.length > 0 && (
                 <>
-                  <div className="w-full h-px bg-zinc-100 my-0.5" />
-                  <div className="px-2 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider flex items-center justify-between">
+                  <div className="w-full h-px bg-zinc-800 my-0.5" />
+                  <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wider flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Clock size={12} />
+                      <Clock size={10} />
                       <span>Recent Projects</span>
                     </div>
                     {onClearRecent && (
@@ -249,13 +268,13 @@ export function Header({
                           e.stopPropagation();
                           onClearRecent();
                         }}
-                        className="text-[10px] text-zinc-400 hover:text-zinc-700 cursor-pointer lowercase"
+                        className="text-[10px] text-zinc-600 hover:text-zinc-300 cursor-pointer"
                       >
                         clear
                       </button>
                     )}
                   </div>
-                  <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto">
+                  <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
                     {recentFiles.map((rf) => (
                       <button
                         key={rf.path}
@@ -263,13 +282,13 @@ export function Header({
                           onOpenRecent?.(rf.path);
                           setIsMenuOpen(false);
                         }}
-                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-100 text-zinc-700 text-left transition-colors cursor-pointer"
+                        className="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-zinc-800 text-zinc-400 text-left transition-colors cursor-pointer"
                         title={rf.path}
                       >
-                        <span className="truncate max-w-[190px] font-medium text-xs">
+                        <span className="truncate max-w-[180px] font-medium text-[11px]">
                           {rf.name}
                         </span>
-                        <span className="text-[9px] text-zinc-400 font-mono">
+                        <span className="text-[9px] text-zinc-600 font-mono">
                           {new Date(rf.lastOpened).toLocaleDateString([], {
                             month: 'short',
                             day: 'numeric',
@@ -281,79 +300,76 @@ export function Header({
                 </>
               )}
 
-              <div className="w-full h-px bg-zinc-100 my-0.5" />
+              <div className="w-full h-px bg-zinc-800 my-0.5" />
 
               <button
-                onClick={() => {
-                  onClear?.();
-                  setIsMenuOpen(false);
-                }}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-red-50 text-red-600 transition-colors cursor-pointer"
+                onClick={() => { onClear?.(); setIsMenuOpen(false); }}
+                className="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-red-500/15 text-red-400 transition-colors cursor-pointer"
               >
-                <Trash2 size={15} />
+                <Trash2 size={14} />
                 <span>Clear Canvas</span>
               </button>
             </div>
           )}
         </div>
 
-        {/* Document Title & Dirty State Badge */}
-        <div className="flex items-center gap-2">
+        {/* Document Title & Dirty State */}
+        <div className="flex items-center gap-2 min-w-0">
           <input
             type="text"
             value={docName}
             onChange={(e) => setDocName(e.target.value)}
-            className="text-sm font-semibold text-zinc-800 bg-transparent hover:bg-zinc-100/80 focus:bg-white border border-transparent focus:border-zinc-300 px-2 py-1 rounded-lg outline-none transition-all w-56 truncate"
+            className="h-8 text-xs font-semibold text-zinc-200 bg-transparent hover:bg-zinc-800 focus:bg-zinc-800 border border-transparent focus:border-zinc-600 px-2.5 rounded-lg outline-none transition-all w-52 truncate placeholder:text-zinc-600"
             title={currentFilePath ? `Location: ${currentFilePath}` : 'Click to rename diagram'}
           />
 
           {isDirty ? (
             <div
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-medium"
+              className="h-6 flex items-center gap-1.5 px-2 rounded-md bg-amber-500/15 text-amber-400 text-[10px] font-medium shrink-0"
               title="Unsaved changes (Cmd+S to save)"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span>Unsaved</span>
             </div>
           ) : currentFilePath ? (
             <div
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-200/60 text-emerald-700 text-[10px] font-medium"
+              className="h-6 flex items-center gap-1.5 px-2 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-medium shrink-0"
               title={`Saved to ${currentFilePath}`}
             >
-              <Check size={11} className="text-emerald-600" />
+              <Check size={11} />
               <span>Saved</span>
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* Center Spotlight Command Palette Button */}
+      {/* Center: Spotlight Search */}
       <button
         onClick={onOpenCommandPalette}
-        className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl border border-zinc-200/80 hover:border-zinc-300 bg-zinc-50/70 hover:bg-zinc-100/80 text-xs text-zinc-400 hover:text-zinc-700 transition-all cursor-pointer shadow-2xs"
+        className="hidden lg:flex items-center gap-2 h-8 px-3 rounded-lg bg-zinc-800/80 hover:bg-zinc-700 border border-zinc-700/60 hover:border-zinc-600 text-xs text-zinc-400 hover:text-zinc-200 transition-all cursor-pointer shrink-0"
         title="Search commands, tools & templates (Cmd+K)"
       >
-        <Search size={13} className="text-zinc-400" />
-        <span className="font-normal text-zinc-500">Search actions & tools...</span>
-        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-white border border-zinc-200 text-zinc-500 shadow-2xs">
+        <Search size={13} className="text-zinc-500" />
+        <span className="font-normal text-[11px]">Search actions & tools...</span>
+        <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-zinc-400 leading-none">
           ⌘K
         </kbd>
       </button>
 
-      {/* Right Actions Toolbar */}
-      <div className="flex items-center gap-2">
+      {/* Right: Action Buttons */}
+      <div className="flex items-center gap-2 shrink-0 pr-1">
         <button
           onClick={onOpenTemplates}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-zinc-700 hover:text-indigo-600 hover:bg-indigo-50/80 border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
-          title="Choose Ready-made Architecture Templates"
+          className="h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer"
+          title="Architecture Templates"
         >
-          <LayoutTemplate size={14} className="text-indigo-500" />
+          <LayoutTemplate size={14} className="text-indigo-400" />
           <span>Templates</span>
         </button>
 
         <button
           onClick={onOpenShortcuts}
-          className="flex items-center justify-center w-8 h-8 rounded-xl text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 border border-zinc-200/80 transition-all cursor-pointer shadow-2xs"
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-all cursor-pointer"
           title="Keyboard Shortcuts (? or ⌘/)"
         >
           <HelpCircle size={15} />
@@ -361,32 +377,32 @@ export function Header({
 
         <button
           onClick={onCopyImage}
-          className="flex items-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors cursor-pointer"
+          className="h-8 flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-2.5 rounded-lg text-xs font-medium transition-colors cursor-pointer border border-zinc-700/50"
           title="Copy Diagram to Clipboard as Image"
         >
-          <Copy size={14} />
-          <span>Copy Image</span>
+          <Copy size={13} />
+          <span>Copy</span>
         </button>
 
         <button
           onClick={() => setIsDocsOpen(!isDocsOpen)}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
             isDocsOpen
-              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-              : 'text-zinc-600 hover:bg-zinc-100 border border-transparent'
+              ? 'bg-indigo-500/20 text-indigo-400 ring-1 ring-indigo-500/30'
+              : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
           }`}
           title="Toggle Architecture Notes"
         >
-          <BookOpen size={15} />
+          <PanelLeft size={14} />
           <span>Docs</span>
         </button>
 
         <button
           onClick={onExport}
-          className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+          className="h-8 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 rounded-lg text-xs font-semibold shadow-md shadow-indigo-500/20 transition-colors cursor-pointer shrink-0"
           title="Export Diagram & Docs (PNG, SVG, MD, JSON)"
         >
-          <Download size={14} />
+          <Download size={13} />
           <span>Export</span>
         </button>
       </div>

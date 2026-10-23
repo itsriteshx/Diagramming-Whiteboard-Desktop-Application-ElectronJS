@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react';
 import {
   Copy,
   Trash2,
@@ -15,15 +16,22 @@ import {
   Group,
   Ungroup,
   X,
+  Sliders,
+  Pipette,
+  CornerDownRight,
+  Sparkles,
 } from 'lucide-react';
 import { STROKE_COLORS, FILL_COLORS } from '../../constants/tools';
 
-function Section({ label, children }) {
+function Section({ label, extra, children }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
-        {label}
-      </span>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+          {label}
+        </span>
+        {extra && <span className="text-[10px] text-zinc-400 font-mono">{extra}</span>}
+      </div>
       {children}
     </div>
   );
@@ -31,7 +39,10 @@ function Section({ label, children }) {
 
 function SegmentedControl({ options, value, onChange }) {
   return (
-    <div className="grid bg-zinc-100 rounded-xl p-1 gap-1" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+    <div
+      className="grid bg-zinc-100/90 p-1 rounded-xl gap-1 border border-zinc-200/50"
+      style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}
+    >
       {options.map((opt) => {
         const isActive = value === opt.val;
         const Icon = opt.icon;
@@ -39,11 +50,11 @@ function SegmentedControl({ options, value, onChange }) {
           <button
             key={opt.val}
             onClick={() => onChange(opt.val)}
-            title={opt.title}
-            className={`py-1.5 flex items-center justify-center rounded-lg text-[11px] font-medium transition-all cursor-pointer ${
+            title={opt.title || opt.label}
+            className={`h-7.5 flex items-center justify-center rounded-lg text-[11px] font-medium leading-none transition-all cursor-pointer ${
               isActive
-                ? 'bg-white shadow-sm text-indigo-600 font-semibold'
-                : 'text-zinc-500 hover:text-zinc-800'
+                ? 'bg-white shadow-xs text-indigo-600 font-semibold ring-1 ring-zinc-200/80'
+                : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200/50'
             }`}
           >
             {Icon ? <Icon size={14} /> : opt.label}
@@ -54,7 +65,9 @@ function SegmentedControl({ options, value, onChange }) {
   );
 }
 
-function ColorRow({ colors, selected, onChange, transparent }) {
+function ColorPaletteRow({ colors, selected, onChange, transparent = false, label = 'Custom' }) {
+  const colorInputRef = useRef(null);
+
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {colors.map((c) => {
@@ -65,10 +78,10 @@ function ColorRow({ colors, selected, onChange, transparent }) {
             key={c}
             onClick={() => onChange(c)}
             title={isTransparent ? 'Transparent / None' : c}
-            className={`w-7 h-7 rounded-lg border transition-all cursor-pointer flex-shrink-0 relative overflow-hidden ${
+            className={`w-6 h-6 rounded-lg border transition-all cursor-pointer flex-shrink-0 relative overflow-hidden ${
               isSelected
-                ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110'
-                : 'border-zinc-200 hover:scale-105'
+                ? 'ring-2 ring-indigo-500 ring-offset-1 scale-110 shadow-xs'
+                : 'border-zinc-200/80 hover:scale-105'
             }`}
             style={{ backgroundColor: isTransparent ? '#fff' : c }}
           >
@@ -76,13 +89,30 @@ function ColorRow({ colors, selected, onChange, transparent }) {
               <>
                 <div className="absolute inset-0 bg-white" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-full h-0.5 bg-red-400 rotate-45" />
+                  <div className="w-full h-0.5 bg-rose-400 rotate-45" />
                 </div>
               </>
             )}
           </button>
         );
       })}
+
+      {/* Native Custom Color Picker Trigger */}
+      <div className="relative flex-shrink-0">
+        <label
+          title="Pick Custom Color"
+          className="w-6 h-6 rounded-lg border border-dashed border-zinc-300 hover:border-indigo-400 flex items-center justify-center cursor-pointer transition-all hover:scale-105 bg-gradient-to-tr from-indigo-50 via-pink-50 to-amber-50"
+        >
+          <Pipette size={11} className="text-zinc-600" />
+          <input
+            ref={colorInputRef}
+            type="color"
+            value={selected === 'transparent' ? '#ffffff' : selected}
+            onChange={(e) => onChange(e.target.value)}
+            className="sr-only"
+          />
+        </label>
+      </div>
     </div>
   );
 }
@@ -107,40 +137,51 @@ export function PropertiesPanel({
   if (!target && !isMulti) return null;
 
   const isLineType = !isMulti && (target?.type === 'arrow' || target?.type === 'line');
-  const isPenType  = !isMulti && target?.type === 'pen';
+  const isPenType = !isMulti && target?.type === 'pen';
+  const isRect = !isMulti && target?.type === 'rectangle';
 
-  const strokeColor  = target?.strokeColor  || '#1e1e1e';
-  const fillColor    = target?.fillColor    || 'transparent';
-  const strokeWidth  = target?.strokeWidth  || 2;
-  const strokeStyle  = target?.strokeStyle  || 'solid';
-  const fontSize     = target?.fontSize     || 16;
-  const textAlign    = target?.textAlign    || 'center';
-  const opacity      = target?.opacity !== undefined ? target?.opacity : 100;
+  const strokeColor = target?.strokeColor || '#0f172a';
+  const fillColor = target?.fillColor || 'transparent';
+  const strokeWidth = target?.strokeWidth || 2;
+  const strokeStyle = target?.strokeStyle || 'solid';
+  const cornerRadius = target?.cornerRadius !== undefined ? target?.cornerRadius : 8;
+  const fontSize = target?.fontSize || 16;
+  const textAlign = target?.textAlign || 'center';
+  const opacity = target?.opacity !== undefined ? target?.opacity : 100;
 
   const titleText = isMulti
     ? isSelectionGrouped
       ? `Group (${selectedShapes.length})`
       : `Selection (${selectedShapes.length})`
-    : target?.type.charAt(0).toUpperCase() + target?.type.slice(1);
+    : target?.type.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
   return (
-    <div className="absolute left-4 top-[72px] z-20 w-[230px] max-h-[calc(100vh-100px)] overflow-y-auto bg-white text-zinc-800 shadow-[0_12px_40px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.06)] border border-zinc-200 rounded-2xl backdrop-blur-md select-none">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100">
-        <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-1.5">
-          {isSelectionGrouped && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
-          {titleText}
-        </span>
+    <aside className="absolute right-5 top-4 z-20 w-[270px] max-h-[calc(100vh-80px)] overflow-y-auto bg-white/95 backdrop-blur-xl text-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.14),0_4px_12px_rgba(0,0,0,0.05)] border border-zinc-200/90 rounded-2xl select-none animate-in fade-in slide-in-from-right-3 duration-150">
+      {/* Inspector Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-700 flex items-center justify-center">
+            <Sliders size={12} />
+          </div>
+          <div>
+            <div className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider flex items-center gap-1.5">
+              {isSelectionGrouped && <span className="w-2 h-2 rounded-full bg-indigo-500" />}
+              {titleText}
+            </div>
+          </div>
+        </div>
         <button
           onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+          className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200/60 transition-colors cursor-pointer"
           title="Deselect"
         >
           <X size={13} />
         </button>
       </div>
 
+      {/* Multi-selection Grouping Bar */}
       {isMulti && (
-        <div className="px-3 pt-3 pb-2 border-b border-zinc-100">
+        <div className="px-3 pt-3 pb-2 border-b border-zinc-100 bg-zinc-50/30">
           {isSelectionGrouped ? (
             <button
               onClick={ungroupSelectedShapes}
@@ -167,15 +208,16 @@ export function PropertiesPanel({
         </div>
       )}
 
+      {/* Alignment & Distribution Section */}
       {selectedShapes.length >= 2 && (
-        <div className="px-4 py-3 border-b border-zinc-100 flex flex-col gap-2.5">
+        <div className="px-4 py-3 border-b border-zinc-100 flex flex-col gap-2.5 bg-zinc-50/20">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               Align Objects
             </span>
             <span className="text-[10px] font-mono text-zinc-400">Alt+⇧+Arrows</span>
           </div>
-          <div className="grid grid-cols-6 gap-1 bg-zinc-50 border border-zinc-200/80 rounded-xl p-1">
+          <div className="grid grid-cols-6 gap-1 bg-zinc-100/80 border border-zinc-200/60 rounded-xl p-1">
             <button
               onClick={() => onAlign && onAlign('left')}
               title="Align Left (Alt+Shift+Left)"
@@ -221,18 +263,18 @@ export function PropertiesPanel({
           </div>
 
           <div className="flex items-center justify-between pt-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               Distribute
             </span>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onDistribute && onDistribute('horizontal')}
                 disabled={selectedShapes.length < 3}
-                title={selectedShapes.length < 3 ? "Select 3+ shapes to distribute horizontally" : "Distribute Horizontally (Alt+Shift+H)"}
+                title={selectedShapes.length < 3 ? 'Select 3+ shapes to distribute horizontally' : 'Distribute Horizontally (Alt+Shift+H)'}
                 className={`px-2 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all ${
                   selectedShapes.length >= 3
-                    ? "bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer"
-                    : "bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                    ? 'bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer'
+                    : 'bg-zinc-50 text-zinc-300 cursor-not-allowed'
                 }`}
               >
                 <AlignHorizontalSpaceBetween size={13} />
@@ -241,11 +283,11 @@ export function PropertiesPanel({
               <button
                 onClick={() => onDistribute && onDistribute('vertical')}
                 disabled={selectedShapes.length < 3}
-                title={selectedShapes.length < 3 ? "Select 3+ shapes to distribute vertically" : "Distribute Vertically (Alt+Shift+V)"}
+                title={selectedShapes.length < 3 ? 'Select 3+ shapes to distribute vertically' : 'Distribute Vertically (Alt+Shift+V)'}
                 className={`px-2 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all ${
                   selectedShapes.length >= 3
-                    ? "bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer"
-                    : "bg-zinc-50 text-zinc-300 cursor-not-allowed"
+                    ? 'bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-700 cursor-pointer'
+                    : 'bg-zinc-50 text-zinc-300 cursor-not-allowed'
                 }`}
               >
                 <AlignVerticalSpaceBetween size={13} />
@@ -256,31 +298,34 @@ export function PropertiesPanel({
         </div>
       )}
 
-      <div className="flex flex-col gap-5 px-4 py-4">
-
+      {/* Main Properties Form */}
+      <div className="flex flex-col gap-4.5 px-4 py-4">
+        {/* Label input */}
         {!isMulti && !isPenType && (
-          <Section label="Label">
+          <Section label="Card / Shape Label">
             <input
               type="text"
-              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 text-[12px] text-zinc-800 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-zinc-300"
-              placeholder="Add a label…"
+              className="w-full bg-zinc-50/80 border border-zinc-200 rounded-xl px-3 py-2 text-[12px] text-zinc-800 outline-none focus:border-indigo-400 focus:bg-white focus:ring-2 focus:ring-indigo-100 transition-all placeholder:text-zinc-300"
+              placeholder="Enter shape text…"
               value={target?.text || ''}
               onChange={(e) => updateSelectedShape({ text: e.target.value })}
             />
           </Section>
         )}
 
-        <Section label="Stroke">
-          <ColorRow
+        {/* Stroke Color */}
+        <Section label="Stroke Color" extra={strokeColor}>
+          <ColorPaletteRow
             colors={STROKE_COLORS}
             selected={strokeColor}
             onChange={(c) => updateSelectedShape({ strokeColor: c })}
           />
         </Section>
 
+        {/* Fill Color */}
         {!isLineType && !isPenType && (
-          <Section label="Fill">
-            <ColorRow
+          <Section label="Fill Color" extra={fillColor}>
+            <ColorPaletteRow
               colors={FILL_COLORS}
               selected={fillColor}
               onChange={(c) => updateSelectedShape({ fillColor: c })}
@@ -289,30 +334,49 @@ export function PropertiesPanel({
           </Section>
         )}
 
-        <Section label="Stroke Width">
+        {/* Stroke Weight */}
+        <Section label="Stroke Weight">
           <SegmentedControl
             value={strokeWidth}
             onChange={(v) => updateSelectedShape({ strokeWidth: v })}
             options={[
-              { val: 1, label: 'Thin' },
-              { val: 2, label: 'Regular' },
-              { val: 4, label: 'Bold' },
+              { val: 1, label: '1px Thin' },
+              { val: 2, label: '2px Normal' },
+              { val: 4, label: '4px Bold' },
             ]}
           />
         </Section>
 
-        <Section label="Stroke Style">
+        {/* Stroke Style */}
+        <Section label="Border Style">
           <SegmentedControl
             value={strokeStyle}
             onChange={(v) => updateSelectedShape({ strokeStyle: v })}
             options={[
-              { val: 'solid',  label: 'Solid' },
+              { val: 'solid', label: 'Solid' },
               { val: 'dashed', label: 'Dashed' },
               { val: 'dotted', label: 'Dotted' },
             ]}
           />
         </Section>
 
+        {/* Corner Radius (for Rectangle) */}
+        {isRect && (
+          <Section label="Corner Radius">
+            <SegmentedControl
+              value={cornerRadius}
+              onChange={(v) => updateSelectedShape({ cornerRadius: v })}
+              options={[
+                { val: 0, label: 'Sharp' },
+                { val: 8, label: 'Smooth' },
+                { val: 16, label: 'Round' },
+                { val: 999, label: 'Pill' },
+              ]}
+            />
+          </Section>
+        )}
+
+        {/* Typography */}
         {!isMulti && !isLineType && !isPenType && (
           <>
             <Section label="Font Size">
@@ -334,16 +398,17 @@ export function PropertiesPanel({
                 value={textAlign}
                 onChange={(v) => updateSelectedShape({ textAlign: v })}
                 options={[
-                  { val: 'left',   icon: AlignLeft,   title: 'Align Left' },
-                  { val: 'center', icon: AlignCenter,  title: 'Align Center' },
-                  { val: 'right',  icon: AlignRight,   title: 'Align Right' },
+                  { val: 'left', icon: AlignLeft, title: 'Align Left' },
+                  { val: 'center', icon: AlignCenter, title: 'Align Center' },
+                  { val: 'right', icon: AlignRight, title: 'Align Right' },
                 ]}
               />
             </Section>
           </>
         )}
 
-        <Section label={`Opacity — ${opacity}%`}>
+        {/* Opacity */}
+        <Section label="Opacity" extra={`${opacity}%`}>
           <input
             type="range"
             min="10"
@@ -355,42 +420,44 @@ export function PropertiesPanel({
           />
         </Section>
 
-        <Section label="Layers">
+        {/* Layer Ordering */}
+        <Section label="Arrange Layers">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={bringToFront}
               className="flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-[11px] font-medium transition-colors cursor-pointer"
             >
               <ArrowUpToLine size={13} />
-              Forward
+              Bring Forward
             </button>
             <button
               onClick={sendToBack}
               className="flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-[11px] font-medium transition-colors cursor-pointer"
             >
               <ArrowDownToLine size={13} />
-              Backward
+              Send Backward
             </button>
           </div>
         </Section>
       </div>
 
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-100">
+      {/* Footer Actions */}
+      <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-100 bg-zinc-50/50">
         <button
           onClick={duplicateSelectedShape}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-zinc-100 hover:bg-indigo-50 hover:text-indigo-700 text-zinc-700 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer"
+          className="h-9 flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-zinc-700 border border-zinc-200 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
         >
           <Copy size={13} />
-          Duplicate
+          <span>Duplicate</span>
         </button>
         <button
           onClick={deleteSelectedShape}
-          className="w-9 h-9 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 rounded-xl transition-colors cursor-pointer"
-          title="Delete"
+          className="w-9 h-9 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer"
+          title="Delete Shape"
         >
           <Trash2 size={15} />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
