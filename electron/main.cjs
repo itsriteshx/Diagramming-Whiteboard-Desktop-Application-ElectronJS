@@ -50,14 +50,18 @@ async function createWindow() {
   const devUrl = "http://localhost:5173";
   const distPath = path.join(__dirname, "../dist/index.html");
 
-  // Check if Vite dev server is running, otherwise fallback to local dist/index.html
-  const isDevRunning = await checkDevServer(devUrl);
-
-  if (isDevRunning) {
-    console.log("Loading from Vite Dev Server:", devUrl);
-    mainWindow.loadURL(devUrl);
+  if (!app.isPackaged) {
+    const isDevRunning = await checkDevServer(devUrl);
+    if (isDevRunning) {
+      console.log("Loading from Vite Dev Server:", devUrl);
+      mainWindow.loadURL(devUrl);
+    } else {
+      console.log("Vite server not found, loading local production build:", distPath);
+      mainWindow.loadFile(distPath).catch((err) => {
+        console.error("Failed to load dist/index.html:", err);
+      });
+    }
   } else {
-    console.log("Vite server not found, loading local production build:", distPath);
     mainWindow.loadFile(distPath).catch((err) => {
       console.error("Failed to load dist/index.html:", err);
     });

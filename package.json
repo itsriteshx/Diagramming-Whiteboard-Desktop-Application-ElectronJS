@@ -11,7 +11,32 @@
     "start": "electron .",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dist": "npm run build && electron-builder --mac",
+    "dist:dmg": "npm run build && electron-builder --mac dmg",
+    "pack": "electron-builder --dir"
+  },
+  "build": {
+    "appId": "com.eraserboard.app",
+    "productName": "EraserBoard",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "dmg": {
+      "title": "EraserBoard Installer"
+    }
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",

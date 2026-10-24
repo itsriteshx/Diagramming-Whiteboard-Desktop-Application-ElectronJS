@@ -25,6 +25,7 @@ import { ExportModal } from './components/ExportModal/ExportModal';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { ShortcutsModal } from './components/ShortcutsModal/ShortcutsModal';
 import { CollabModal } from './components/CollabModal/CollabModal';
+import { WelcomeScreen } from './components/WelcomeScreen/WelcomeScreen';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
 import { useCollaboration } from './hooks/useCollaboration';
@@ -34,138 +35,56 @@ import { getRecentFiles, addRecentFile, clearRecentFiles } from './utils/recentF
 
 const INITIAL_SHAPES = [
   {
-    id: 'node_root',
-    type: 'rectangle',
-    x: 520,
-    y: 120,
-    width: 220,
-    height: 60,
-    strokeColor: '#1e1e1e',
-    fillColor: '#fecdd3',
-    strokeWidth: 2,
-    strokeStyle: 'solid',
-    text: 'Types of ML / System',
+    id: 'mac_hello',
+    type: 'text',
+    x: 480,
+    y: 200,
+    width: 280,
+    height: 100,
+    strokeColor: '#0f172a',
+    textColor: '#0f172a',
+    text: 'hello',
+    fontSize: 92,
+    fontFamily: "'Snell Roundhand', 'Caveat', 'Dancing Script', 'Brush Script MT', cursive",
+    textAlign: 'left',
+  },
+  {
+    id: 'mac_subtitle',
+    type: 'text',
+    x: 485,
+    y: 320,
+    width: 320,
+    height: 30,
+    strokeColor: '#64748b',
+    textColor: '#64748b',
+    text: 'Welcome to your whiteboard canvas',
     fontSize: 16,
-    textAlign: 'center',
-  },
-  {
-    id: 'node_sup',
-    type: 'rectangle',
-    x: 320,
-    y: 280,
-    width: 180,
-    height: 60,
-    strokeColor: '#1e1e1e',
-    fillColor: '#bbf7d0',
-    strokeWidth: 2,
-    strokeStyle: 'dashed',
-    text: 'Supervised Learning',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  {
-    id: 'node_unsup',
-    type: 'rectangle',
-    x: 550,
-    y: 280,
-    width: 190,
-    height: 60,
-    strokeColor: '#1e1e1e',
-    fillColor: '#bbf7d0',
-    strokeWidth: 2,
-    strokeStyle: 'dashed',
-    text: 'Unsupervised Learning',
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  {
-    id: 'node_db',
-    type: 'database',
-    x: 790,
-    y: 260,
-    width: 170,
-    height: 100,
-    strokeColor: '#1e1e1e',
-    fillColor: '#bfdbfe',
-    strokeWidth: 2,
-    strokeStyle: 'solid',
-    text: 'Training Dataset DB',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  {
-    id: 'arrow_1',
-    type: 'arrow',
-    x: 560,
-    y: 180,
-    width: -150,
-    height: 100,
-    strokeColor: '#1e1e1e',
-    strokeWidth: 2,
-    strokeStyle: 'dashed',
-    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
-    endBinding: { shapeId: 'node_sup', anchor: 'top' },
-  },
-  {
-    id: 'arrow_2',
-    type: 'arrow',
-    x: 630,
-    y: 180,
-    width: 10,
-    height: 100,
-    strokeColor: '#1e1e1e',
-    strokeWidth: 2,
-    strokeStyle: 'dashed',
-    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
-    endBinding: { shapeId: 'node_unsup', anchor: 'top' },
-  },
-  {
-    id: 'arrow_3',
-    type: 'arrow',
-    x: 700,
-    y: 180,
-    width: 160,
-    height: 80,
-    strokeColor: '#1e1e1e',
-    strokeWidth: 2,
-    strokeStyle: 'dashed',
-    startBinding: { shapeId: 'node_root', anchor: 'bottom' },
-    endBinding: { shapeId: 'node_db', anchor: 'top' },
+    fontFamily: 'Inter, -apple-system, sans-serif',
+    textAlign: 'left',
   },
 ];
 
-const INITIAL_DOCS = `# Machine Learning System Architecture
+const INITIAL_DOCS = `# Welcome to EraserBoard ✏️
 
-Visual whiteboard workspace coupled with structured technical documentation.
+An intuitive diagramming and whiteboard desktop app designed for rapid visual thinking and structured technical documentation.
 
-> [!NOTE]
-> Notes autosync with your diagram state and export as standalone .md specifications.
+> [!TIP]
+> Use the top toolbar to select shapes, connectors, or freehand drawing tools. Press **?** anytime to see keyboard shortcuts.
 
-## Architecture Components
+## Quick Start Shortcuts
+- **V** — Select & Transform tool
+- **R** — Rectangle
+- **O** — Circle / Ellipse
+- **D** — Diamond / Decision
+- **T** — Text label
+- **A** — Sticky flowchart Arrow
+- **P** — Freehand Pen
 
-| Module | Core Responsibility | Stack |
-| :--- | :--- | :--- |
-| **Canvas Engine** | 2D Vector Rendering & Math Hit Detection | HTML5 Canvas 2D |
-| **Desktop Shell** | Native Window & OS Integration | Electron v41 |
-| **State & History** | Viewport Pan/Zoom & Infinite Undo/Redo | React 19 Hooks |
-
-## Engineering Milestones
-- [x] Canvas viewport transformation (Pan & Zoom Math)
-- [x] Smart sticky flowchart connectors & magnetic anchors
-- [x] Multi-selection marquee & element grouping
-- [x] Alignment & distribution suite (Horiz & Vert)
-- [x] Rich Markdown docs panel with live split-view preview
-- [ ] Export to SVG, PDF, and high-res PNG
-
-## Flowchart Snapping Logic
-\`\`\`javascript
-// Compute magnetic anchor points for node
-const anchors = getShapeAnchors(node);
-const nearest = findNearestAnchor(cursor.x, cursor.y, shapes);
-if (nearest) {
-  arrow.endBinding = { shapeId: nearest.shapeId, anchor: nearest.name };
-}
-\`\`\`
+## Features
+- **Smart Magnetic Connectors**: Arrows snap and stay glued to shapes when moved
+- **Split-View Markdown Docs**: Live notes alongside your canvas
+- **Multi-Selection & Alignment**: Group, align left/center/right, distribute evenly
+- **Export Ready**: Save high-res PNG, SVG, or project JSON
 `;
 
 export default function App() {
@@ -178,10 +97,17 @@ export default function App() {
     canRedo,
   } = useHistory(INITIAL_SHAPES);
 
+  const [showWelcome, setShowWelcome] = useState(() => {
+    // Only show welcome once per session
+    if (sessionStorage.getItem('eraserboard_welcomed')) return false;
+    sessionStorage.setItem('eraserboard_welcomed', '1');
+    return true;
+  });
+
   const [activeTool, setActiveTool] = useState(TOOLS.SELECT);
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentStyle, setCurrentStyle] = useState(DEFAULT_STYLE);
-  const [docName, setDocName] = useState('Machine Learning & Architecture');
+  const [docName, setDocName] = useState('Untitled Board');
   const [docsContent, setDocsContent] = useState(INITIAL_DOCS);
   const [isDocsOpen, setIsDocsOpen] = useState(false);
   const [isTemplatesOpen, setIsTemplatesOpen] = useState(false);
@@ -861,6 +787,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col w-screen h-screen overflow-hidden bg-white select-none">
+      {showWelcome && <WelcomeScreen onDismiss={() => setShowWelcome(false)} />}
       <Header
         docName={docName}
         setDocName={(name) => {

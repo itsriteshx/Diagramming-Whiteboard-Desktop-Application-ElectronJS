@@ -633,8 +633,10 @@ export function drawShape(ctx, shape) {
 
     case 'text':
       if (shape.text) {
-        ctx.fillStyle = shape.strokeColor || '#1e1e1e';
-        ctx.font = `${shape.fontSize || 18}px ${shape.fontFamily || 'Inter, sans-serif'}`;
+        ctx.fillStyle = shape.textColor || shape.strokeColor || '#1e1e1e';
+        const weight = shape.fontWeight ? `${shape.fontWeight} ` : '';
+        const style = shape.fontStyle ? `${shape.fontStyle} ` : '';
+        ctx.font = `${style}${weight}${shape.fontSize || 18}px ${shape.fontFamily || 'Inter, sans-serif'}`;
         ctx.textAlign = shape.textAlign || 'left';
         ctx.textBaseline = 'top';
         ctx.setLineDash([]);
