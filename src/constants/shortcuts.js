@@ -325,4 +325,11 @@ export const SHORTCUTS = [
     description: 'Export to Scalable Vector SVG, 4K Retina PNG, or Markdown',
     keys: ['⇧', '⌘', 'E'],
   },
+  {
+    id: 'collab-live',
+    category: 'file',
+    title: 'Live Visual Collaboration',
+    description: 'Start or join a real-time collaborative room with remote cursor sync',
+    keys: ['⌘', 'K', '→', 'Collab'],
+  },
 ];

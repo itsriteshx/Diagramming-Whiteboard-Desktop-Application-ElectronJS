@@ -86,6 +86,14 @@ Unlike traditional sketch-based doodle whiteboards, EraserBoard provides develop
 - **Markdown Document Export**: Download technical documentation as standalone `.md` files.
 - **Instant Clipboard Copy**: 1-click copy diagram directly as an image to paste into Slack, Notion, or GitHub.
 
+### 10. 🌐 Live Visual Collaboration Suite (Real-Time Multi-User)
+- **Zero-Configuration Mesh Synchronization**: Ultra-fast peer communication powered by HTML5 `BroadcastChannel` and room sessions with zero external setup.
+- **Live Remote Cursors**: Real-time cursor tracking with participant names, distinct avatar color pills, and active tool badges moving seamlessly across pan and zoom.
+- **Synchronized Canvas & Docs**: Edits to diagram shapes, colors, connectors, and Markdown technical notes propagate instantly to all connected collaborators.
+- **Instant Room Codes & Sharing**: Auto-generated human-readable room IDs (`ERASER-XXXX`) with 1-click invite link and room code copying.
+- **Live Canvas Reactions**: Send floating emoji pings (👍, ❤️, 🚀, 🎉, 💡, 🔥) that float over the whiteboard at cursor coordinates.
+- **Multi-Window Side-by-Side Testing**: Electron IPC command to spawn a second collaborator window to test multi-user collaboration locally.
+
 ---
 
 ## ⌨️ Keyboard Shortcuts Reference

@@ -371,6 +371,40 @@ ipcMain.handle("show-in-folder", async (event, filePath) => {
   return { success: false };
 });
 
+// 6. Launch Secondary Collaborator Window for Real-Time Testing
+ipcMain.handle("open-collab-window", async (event, roomId) => {
+  try {
+    const collabWin = new BrowserWindow({
+      width: 1200,
+      height: 800,
+      minWidth: 800,
+      minHeight: 550,
+      backgroundColor: "#ffffff",
+      title: `EraserBoard (Collaborator - Room: ${roomId || 'Live'})`,
+      webPreferences: {
+        preload: path.join(__dirname, "preload.cjs"),
+        contextIsolation: true,
+        nodeIntegration: false,
+      },
+    });
+
+    const devUrl = `http://localhost:5173${roomId ? `?room=${encodeURIComponent(roomId)}` : ''}`;
+    const isDevRunning = await checkDevServer("http://localhost:5173");
+
+    if (isDevRunning) {
+      collabWin.loadURL(devUrl);
+    } else {
+      const distPath = path.join(__dirname, "../dist/index.html");
+      collabWin.loadFile(distPath, { query: { room: roomId || '' } });
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("Failed to open collab window:", err);
+    return { success: false, error: err.message };
+  }
+});
+
 // ==========================================
 // 🔄 APP LIFECYCLE
 // ==========================================

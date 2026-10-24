@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // Reveal File in macOS Finder / Windows Explorer
   showInFolder: (filePath) => ipcRenderer.invoke("show-in-folder", filePath),
 
+  // Launch Secondary Collaborator Window
+  openCollabWindow: (roomId) => ipcRenderer.invoke("open-collab-window", roomId),
+
   // Native Menu Listeners (macOS Top Menu clicks)
   onMenuNew: (callback) => ipcRenderer.on("menu-new-file", callback),
   onMenuSave: (callback) => ipcRenderer.on("menu-save-file", callback),

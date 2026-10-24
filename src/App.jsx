@@ -23,8 +23,10 @@ import { TemplatesModal } from './components/TemplatesModal/TemplatesModal';
 import { ExportModal } from './components/ExportModal/ExportModal';
 import { CommandPalette } from './components/CommandPalette/CommandPalette';
 import { ShortcutsModal } from './components/ShortcutsModal/ShortcutsModal';
+import { CollabModal } from './components/CollabModal/CollabModal';
 import { useCanvasViewport } from './hooks/useCanvasViewport';
 import { useHistory } from './hooks/useHistory';
+import { useCollaboration } from './hooks/useCollaboration';
 import { TOOLS, DEFAULT_STYLE, CANVAS_BACKGROUNDS } from './constants/tools';
 import { alignShapes, distributeShapes } from './utils/coordinates';
 import { getRecentFiles, addRecentFile, clearRecentFiles } from './utils/recentFiles';
@@ -187,6 +189,19 @@ export default function App() {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [canvasBg, setCanvasBg] = useState(CANVAS_BACKGROUNDS[0]);
   const [isToolLocked, setIsToolLocked] = useState(false);
+  const [isCollabOpen, setIsCollabOpen] = useState(false);
+
+  // 🌟 Real-time Visual Collaboration Engine
+  const collab = useCollaboration({
+    shapes,
+    docName,
+    docsContent,
+    canvasBg,
+    setShapes,
+    setDocName,
+    setDocsContent,
+    setCanvasBg,
+  });
 
   // Day 10: File I/O, Autosave & Dirty State
   const [isDirty, setIsDirty] = useState(false);
@@ -854,6 +869,10 @@ export default function App() {
         onOpenTemplates={() => setIsTemplatesOpen(true)}
         onOpenCommandPalette={() => setIsPaletteOpen(true)}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onOpenCollab={() => setIsCollabOpen(true)}
+        isCollabConnected={collab.isConnected}
+        collabPeersCount={collab.peersCount}
+        collabRoomId={collab.roomId}
         isDocsOpen={isDocsOpen}
         setIsDocsOpen={setIsDocsOpen}
         canvasBg={canvasBg}
@@ -946,6 +965,9 @@ export default function App() {
           canUndo={canUndo}
           canRedo={canRedo}
           isToolLocked={isToolLocked}
+          peers={collab.peers}
+          reactions={collab.reactions}
+          onSendCursor={collab.sendCursor}
         />
 
         {selectedIds.length > 1 && (
@@ -1102,11 +1124,30 @@ export default function App() {
         zoomOut={viewport.zoomOut}
         resetView={viewport.resetView}
         onOpenShortcuts={() => setIsShortcutsOpen(true)}
+        onOpenCollab={() => setIsCollabOpen(true)}
       />
 
       <ShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      <CollabModal
+        isOpen={isCollabOpen}
+        onClose={() => setIsCollabOpen(false)}
+        roomId={collab.roomId}
+        isConnected={collab.isConnected}
+        localUser={collab.localUser}
+        peers={collab.peers}
+        peersCount={collab.peersCount}
+        onConnect={collab.connectToRoom}
+        onLeave={collab.leaveRoom}
+        onUpdateProfile={collab.updateProfile}
+        onSendReaction={(emoji) => {
+          const cx = (-viewport.pan.x + window.innerWidth / 2) / viewport.zoom;
+          const cy = (-viewport.pan.y + window.innerHeight / 2) / viewport.zoom;
+          collab.broadcastReaction(emoji, cx, cy);
+        }}
       />
     </div>
   );

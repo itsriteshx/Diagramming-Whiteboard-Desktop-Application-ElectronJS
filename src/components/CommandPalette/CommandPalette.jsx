@@ -28,6 +28,7 @@ import {
   HelpCircle,
   MousePointer,
   Hand,
+  Users,
 } from 'lucide-react';
 import { TOOLS, CANVAS_BACKGROUNDS } from '../../constants/tools';
 import { ARCHITECTURE_TEMPLATES } from '../../constants/templates';
@@ -52,6 +53,7 @@ export function CommandPalette({
   zoomOut,
   resetView,
   onOpenShortcuts,
+  onOpenCollab,
 }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -103,7 +105,8 @@ export function CommandPalette({
       { id: 'file-export', title: 'Export Diagram & Docs (PNG, SVG, MD)', category: 'File Operations', shortcut: '⇧⌘E', icon: <Download size={15} />, action: onExport },
       { id: 'file-clear', title: 'Clear Entire Whiteboard', category: 'File Operations', shortcut: '', icon: <Trash2 size={15} className="text-red-500" />, action: onClear },
 
-      // View
+      // View & Collaboration
+      { id: 'view-collab', title: 'Live Collaboration Session (Share / Join)...', category: 'Collaboration', shortcut: 'Collab', icon: <Users size={15} className="text-emerald-400" />, action: onOpenCollab },
       { id: 'view-docs', title: isDocsOpen ? 'Close Architecture Docs' : 'Open Architecture Docs', category: 'View & Panels', shortcut: 'Docs', icon: <BookOpen size={15} />, action: () => setIsDocsOpen(!isDocsOpen) },
       { id: 'view-templates', title: 'Open Templates Gallery...', category: 'View & Panels', shortcut: '', icon: <Sparkles size={15} />, action: onOpenTemplates },
       { id: 'view-shortcuts', title: 'Keyboard Shortcuts Cheatsheet', category: 'Help & Shortcuts', shortcut: '?', icon: <HelpCircle size={15} />, action: onOpenShortcuts },
@@ -135,6 +138,7 @@ export function CommandPalette({
     setIsDocsOpen,
     onOpenTemplates,
     onOpenShortcuts,
+    onOpenCollab,
     zoomIn,
     zoomOut,
     resetView,

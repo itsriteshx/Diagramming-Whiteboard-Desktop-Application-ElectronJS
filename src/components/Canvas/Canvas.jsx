@@ -95,6 +95,9 @@ export function Canvas({
   canvasBg,
   undo, redo, canUndo, canRedo,
   isToolLocked,
+  peers = {},
+  reactions = [],
+  onSendCursor,
 }) {
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
@@ -432,6 +435,8 @@ export function Canvas({
     const { sx, sy } = getScreenPos(e);
     const world = toWorld(sx, sy);
     const { activeTool, selectedId, shapes, zoom } = R.current;
+
+    onSendCursor?.(world.x, world.y, activeTool);
 
     if (!isDown.current) {
       if (isSpace.current || activeTool === TOOLS.PAN) {
@@ -800,6 +805,85 @@ export function Canvas({
         onWheel={handleWheel}
         className="block w-full h-full"
       />
+
+      {/* 🌟 Remote Peer Cursors Layer */}
+      {Object.values(peers).map((peer) => {
+        if (!peer.cursor) return null;
+        const screenX = peer.cursor.x * zoom + pan.x;
+        const screenY = peer.cursor.y * zoom + pan.y;
+        const peerColor = peer.color || '#6366f1';
+
+        return (
+          <div
+            key={peer.id}
+            className="pointer-events-none absolute z-30 transition-transform duration-75 ease-out select-none will-change-transform"
+            style={{
+              transform: `translate(${screenX}px, ${screenY}px)`,
+              left: 0,
+              top: 0,
+            }}
+          >
+            {/* Smooth SVG Cursor Pointer */}
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="drop-shadow-md"
+            >
+              <path
+                d="M5.65376 12.3673H5.46026L5.31717 12.4976L0.500002 16.8829L0.500002 1.19841L11.7841 12.3673H5.65376Z"
+                fill={peerColor}
+                stroke="#ffffff"
+                strokeWidth="1.2"
+              />
+            </svg>
+
+            {/* Peer Name Pill */}
+            <div
+              className="ml-3.5 -mt-2 px-2 py-0.5 rounded-full text-[10px] font-semibold text-white whitespace-nowrap shadow-lg flex items-center gap-1 border border-white/20"
+              style={{ backgroundColor: peerColor }}
+            >
+              <span>{peer.name || 'Collaborator'}</span>
+              {peer.cursor.activeTool && peer.cursor.activeTool !== 'select' && (
+                <span className="opacity-80 text-[8px] uppercase tracking-wider font-mono">
+                  [{peer.cursor.activeTool}]
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* 🌟 Floating Live Reactions Layer */}
+      {reactions.map((r) => {
+        const screenX = (r.x !== undefined ? r.x : 0) * zoom + pan.x;
+        const screenY = (r.y !== undefined ? r.y : 0) * zoom + pan.y;
+        return (
+          <div
+            key={r.id}
+            className="pointer-events-none absolute z-40 select-none animate-bounce"
+            style={{
+              left: screenX,
+              top: screenY - 28,
+            }}
+          >
+            <div className="flex flex-col items-center">
+              <span className="text-3xl filter drop-shadow-xl transform hover:scale-125 transition-transform">
+                {r.emoji}
+              </span>
+              {r.user && (
+                <span
+                  className="text-[9px] font-bold text-white px-1.5 py-0.2 rounded-full shadow border border-white/20 -mt-1"
+                  style={{ backgroundColor: r.user.color || '#6366f1' }}
+                >
+                  {r.user.name}
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
       {editingId && editingPos && (
         <div className="absolute z-50 pointer-events-none" style={{ left: editingPos.left, top: editingPos.top, width: editingPos.width, height: editingPos.height }}>

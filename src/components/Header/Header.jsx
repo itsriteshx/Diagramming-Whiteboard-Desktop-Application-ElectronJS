@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Zap,
   PanelLeft,
+  Users,
 } from 'lucide-react';
 import { CANVAS_BACKGROUNDS } from '../../constants/tools';
 
@@ -42,6 +43,10 @@ export function Header({
   onOpenTemplates,
   onOpenCommandPalette,
   onOpenShortcuts,
+  onOpenCollab,
+  isCollabConnected = false,
+  collabPeersCount = 0,
+  collabRoomId = null,
   isDocsOpen,
   setIsDocsOpen,
   canvasBg,
@@ -366,6 +371,27 @@ export function Header({
           <LayoutTemplate size={14} className="text-indigo-400" />
           <span>Templates</span>
         </button>
+
+        {/* Live Collaboration Button */}
+        {isCollabConnected ? (
+          <button
+            onClick={onOpenCollab}
+            className="h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30 transition-all cursor-pointer shadow-sm"
+            title={`Room: ${collabRoomId} · ${collabPeersCount + 1} participant(s) live`}
+          >
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>{collabPeersCount + 1} Online</span>
+          </button>
+        ) : (
+          <button
+            onClick={onOpenCollab}
+            className="h-8 flex items-center gap-1.5 px-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-indigo-400 hover:bg-zinc-800 transition-all cursor-pointer"
+            title="Start Live Collaboration Session"
+          >
+            <Users size={14} className="text-indigo-400" />
+            <span>Collab</span>
+          </button>
+        )}
 
         <button
           onClick={onOpenShortcuts}
