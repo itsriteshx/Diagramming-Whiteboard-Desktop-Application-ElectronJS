@@ -13,6 +13,7 @@ import {
   AlignHorizontalSpaceBetween,
   AlignVerticalSpaceBetween,
   Clock,
+  CheckSquare,
 } from 'lucide-react';
 import { Header } from './components/Header/Header';
 import { Toolbar } from './components/Toolbar/Toolbar';
@@ -207,7 +208,22 @@ export default function App() {
   const [isDirty, setIsDirty] = useState(false);
   const [currentFilePath, setCurrentFilePath] = useState(null);
   const [recentFiles, setRecentFiles] = useState(() => getRecentFiles());
-  const [autosaveCandidate, setAutosaveCandidate] = useState(null);
+  const [autosaveCandidate, setAutosaveCandidate] = useState(() => {
+    try {
+      const raw = localStorage.getItem('eraserboard_autosave');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && Array.isArray(parsed.shapes) && parsed.shapes.length > 0 && parsed.timestamp) {
+          if (Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
+            return parsed;
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+    return null;
+  });
   const isFirstRender = useRef(true);
 
   // Track unsaved modifications
@@ -223,23 +239,6 @@ export default function App() {
   useEffect(() => {
     document.title = `${isDirty ? '● ' : ''}${docName} - EraserBoard`;
   }, [isDirty, docName]);
-
-  // Check for previous autosaved session on launch
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('eraserboard_autosave');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && Array.isArray(parsed.shapes) && parsed.shapes.length > 0 && parsed.timestamp) {
-          if (Date.now() - parsed.timestamp < 7 * 24 * 60 * 60 * 1000) {
-            setAutosaveCandidate(parsed);
-          }
-        }
-      }
-    } catch {
-      // Ignore localStorage read errors
-    }
-  }, []);
 
   // Debounced autosave backup every 1.5 seconds
   useEffect(() => {
@@ -300,7 +299,24 @@ export default function App() {
 
   const deleteSelectedShape = useCallback(() => {
     if (selectedIds.length === 0) return;
-    setShapes((prev) => prev.filter((s) => !selectedIds.includes(s.id)));
+    const activeSet = new Set(selectedIds);
+    setShapes((prev) =>
+      prev
+        .filter((s) => !activeSet.has(s.id))
+        .map((s) => {
+          if (s.type === 'arrow' || s.type === 'line') {
+            const detached = { ...s };
+            if (detached.startBinding && activeSet.has(detached.startBinding.shapeId)) {
+              delete detached.startBinding;
+            }
+            if (detached.endBinding && activeSet.has(detached.endBinding.shapeId)) {
+              delete detached.endBinding;
+            }
+            return detached;
+          }
+          return s;
+        })
+    );
     setSelectedIds([]);
   }, [selectedIds, setShapes]);
 
@@ -358,21 +374,21 @@ export default function App() {
     );
   }, [selectedIds, setShapes]);
 
-  const bringToFront = () => {
+  const bringToFront = useCallback(() => {
     if (selectedIds.length === 0) return;
     const activeSet = new Set(selectedIds);
     const nonSelected = shapes.filter((s) => !activeSet.has(s.id));
     const selected = shapes.filter((s) => activeSet.has(s.id));
     setShapes([...nonSelected, ...selected]);
-  };
+  }, [selectedIds, shapes, setShapes]);
 
-  const sendToBack = () => {
+  const sendToBack = useCallback(() => {
     if (selectedIds.length === 0) return;
     const activeSet = new Set(selectedIds);
     const nonSelected = shapes.filter((s) => !activeSet.has(s.id));
     const selected = shapes.filter((s) => activeSet.has(s.id));
     setShapes([...selected, ...nonSelected]);
-  };
+  }, [selectedIds, shapes, setShapes]);
 
   const selectAll = useCallback(() => {
     setSelectedIds(shapes.map((s) => s.id));
@@ -705,6 +721,24 @@ export default function App() {
         return;
       }
 
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName)) {
+        e.preventDefault();
+        deleteSelectedShape();
+        return;
+      }
+
+      if (e.key === ']' || (modKey && e.key === ']')) {
+        e.preventDefault();
+        bringToFront();
+        return;
+      }
+
+      if (e.key === '[' || (modKey && e.key === '[')) {
+        e.preventDefault();
+        sendToBack();
+        return;
+      }
+
       switch (e.key.toLowerCase()) {
         case 'v': setActiveTool(TOOLS.SELECT); break;
         case 'h': setActiveTool(TOOLS.PAN); break;
@@ -728,28 +762,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew, handleOpenExport, isPaletteOpen, isShortcutsOpen]);
-
-  const handleExportPNG = async () => {
-    const canvas = document.querySelector('canvas');
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-
-    if (window.electronAPI?.saveImage) {
-      const result = await window.electronAPI.saveImage(
-        dataUrl,
-        `${docName.toLowerCase().replace(/\s+/g, '-')}.png`
-      );
-      if (result?.success) {
-        alert('Diagram exported as PNG successfully!');
-      }
-    } else {
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `${docName.toLowerCase().replace(/\s+/g, '-')}.png`;
-      a.click();
-    }
-  };
+  }, [undo, redo, deleteSelectedShape, duplicateSelectedShape, groupSelectedShapes, ungroupSelectedShapes, selectAll, deselectAll, bringToFront, sendToBack, handleAlign, handleDistribute, handleSave, handleSaveAs, handleOpen, handleNew, handleOpenExport, isPaletteOpen, isShortcutsOpen]);
 
   const handleCopyImage = async () => {
     const canvas = document.querySelector('canvas');
@@ -884,7 +897,7 @@ export default function App() {
 
       {/* Autosave Recovery Banner */}
       {autosaveCandidate && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 backdrop-blur-md text-xs animate-in fade-in slide-in-from-top-2 duration-150 select-none">
+        <div className="absolute top-14 left-6 z-40 bg-zinc-900/95 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-4 py-2 flex items-center gap-3 backdrop-blur-md text-xs animate-in fade-in slide-in-from-top-2 duration-150 select-none">
           <div className="flex items-center gap-1.5 text-amber-400 font-medium shrink-0">
             <Clock size={14} />
             <span>Autosave Backup Found</span>
@@ -940,6 +953,8 @@ export default function App() {
           onAlign={handleAlign}
           onDistribute={handleDistribute}
           onClose={() => setSelectedIds([])}
+          onSelectAll={selectAll}
+          totalShapesCount={shapes.length}
         />
 
         <Canvas
@@ -970,99 +985,121 @@ export default function App() {
           onSendCursor={collab.sendCursor}
         />
 
-        {selectedIds.length > 1 && (
+        {selectedIds.length >= 1 && (
           <div className="absolute bottom-22 left-1/2 -translate-x-1/2 z-30 bg-zinc-900/95 text-white shadow-2xl border border-zinc-700/80 rounded-2xl px-3.5 py-2 flex items-center gap-2 backdrop-blur-md select-none text-xs animate-in fade-in zoom-in-95 duration-100">
             <div className="flex items-center gap-2 font-medium text-zinc-200 pr-2.5 border-r border-zinc-700">
               <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-              <span>{isSelectionGrouped ? `Grouped (${selectedShapes.length})` : `${selectedShapes.length} items`}</span>
+              <span>
+                {selectedShapes.length === shapes.length && shapes.length > 1
+                  ? `All selected (${selectedShapes.length})`
+                  : isSelectionGrouped
+                  ? `Grouped (${selectedShapes.length})`
+                  : `${selectedShapes.length} item${selectedShapes.length > 1 ? 's' : ''}`}
+              </span>
             </div>
 
-            {isSelectionGrouped ? (
-              <button
-                onClick={ungroupSelectedShapes}
-                title="Ungroup (Cmd+Shift+G)"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              >
-                <Ungroup size={14} className="text-indigo-400" />
-                <span>Ungroup</span>
-                <span className="text-[10px] text-zinc-500 font-mono">⇧⌘G</span>
-              </button>
-            ) : (
-              <button
-                onClick={groupSelectedShapes}
-                title="Group (Cmd+G)"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors cursor-pointer"
-              >
-                <Group size={14} />
-                <span>Group</span>
-                <span className="text-[10px] text-indigo-200 font-mono">⌘G</span>
-              </button>
+            {selectedIds.length > 1 && (
+              isSelectionGrouped ? (
+                <button
+                  onClick={ungroupSelectedShapes}
+                  title="Ungroup (Cmd+Shift+G)"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                >
+                  <Ungroup size={14} className="text-indigo-400" />
+                  <span>Ungroup</span>
+                  <span className="text-[10px] text-zinc-500 font-mono">⇧⌘G</span>
+                </button>
+              ) : (
+                <button
+                  onClick={groupSelectedShapes}
+                  title="Group (Cmd+G)"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors cursor-pointer"
+                >
+                  <Group size={14} />
+                  <span>Group</span>
+                  <span className="text-[10px] text-indigo-200 font-mono">⌘G</span>
+                </button>
+              )
             )}
 
-            <div className="flex items-center gap-0.5 px-1 py-0.5 bg-zinc-800/80 rounded-xl border border-zinc-700/50">
+            {selectedIds.length > 1 && (
+              <div className="flex items-center gap-0.5 px-1 py-0.5 bg-zinc-800/80 rounded-xl border border-zinc-700/50">
+                <button
+                  onClick={() => handleAlign('left')}
+                  title="Align Left (Alt+Shift+Left)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignLeft size={13} />
+                </button>
+                <button
+                  onClick={() => handleAlign('center')}
+                  title="Align Center Horizontal (Alt+Shift+C)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignCenterHorizontal size={13} />
+                </button>
+                <button
+                  onClick={() => handleAlign('right')}
+                  title="Align Right (Alt+Shift+Right)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignRight size={13} />
+                </button>
+                <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+                <button
+                  onClick={() => handleAlign('top')}
+                  title="Align Top (Alt+Shift+Up)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignStartHorizontal size={13} />
+                </button>
+                <button
+                  onClick={() => handleAlign('middle')}
+                  title="Align Middle Vertical (Alt+Shift+M)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignCenterVertical size={13} />
+                </button>
+                <button
+                  onClick={() => handleAlign('bottom')}
+                  title="Align Bottom (Alt+Shift+Down)"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                >
+                  <AlignEndHorizontal size={13} />
+                </button>
+                {selectedShapes.length >= 3 && (
+                  <>
+                    <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
+                    <button
+                      onClick={() => handleDistribute('horizontal')}
+                      title="Distribute Horizontally (Alt+Shift+H)"
+                      className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+                    >
+                      <AlignHorizontalSpaceBetween size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDistribute('vertical')}
+                      title="Distribute Vertically (Alt+Shift+V)"
+                      className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
+                    >
+                      <AlignVerticalSpaceBetween size={13} />
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Select All on Canvas */}
+            {selectedIds.length < shapes.length && shapes.length > 1 && (
               <button
-                onClick={() => handleAlign('left')}
-                title="Align Left (Alt+Shift+Left)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
+                onClick={selectAll}
+                title="Select All Elements on Canvas (Cmd+A)"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition-colors cursor-pointer"
               >
-                <AlignLeft size={13} />
+                <CheckSquare size={13} className="text-indigo-400" />
+                <span>Select All ({shapes.length})</span>
               </button>
-              <button
-                onClick={() => handleAlign('center')}
-                title="Align Center Horizontal (Alt+Shift+C)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <AlignCenterHorizontal size={13} />
-              </button>
-              <button
-                onClick={() => handleAlign('right')}
-                title="Align Right (Alt+Shift+Right)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <AlignRight size={13} />
-              </button>
-              <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
-              <button
-                onClick={() => handleAlign('top')}
-                title="Align Top (Alt+Shift+Up)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <AlignStartHorizontal size={13} />
-              </button>
-              <button
-                onClick={() => handleAlign('middle')}
-                title="Align Middle Vertical (Alt+Shift+M)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <AlignCenterVertical size={13} />
-              </button>
-              <button
-                onClick={() => handleAlign('bottom')}
-                title="Align Bottom (Alt+Shift+Down)"
-                className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors cursor-pointer"
-              >
-                <AlignEndHorizontal size={13} />
-              </button>
-              {selectedShapes.length >= 3 && (
-                <>
-                  <div className="w-px h-3.5 bg-zinc-700 mx-0.5" />
-                  <button
-                    onClick={() => handleDistribute('horizontal')}
-                    title="Distribute Horizontally (Alt+Shift+H)"
-                    className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
-                  >
-                    <AlignHorizontalSpaceBetween size={13} />
-                  </button>
-                  <button
-                    onClick={() => handleDistribute('vertical')}
-                    title="Distribute Vertically (Alt+Shift+V)"
-                    className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-indigo-400 hover:bg-zinc-700 transition-colors cursor-pointer"
-                  >
-                    <AlignVerticalSpaceBetween size={13} />
-                  </button>
-                </>
-              )}
-            </div>
+            )}
 
             <button
               onClick={duplicateSelectedShape}
@@ -1073,13 +1110,20 @@ export default function App() {
               <span>Duplicate</span>
             </button>
 
+            {/* Delete Selection / Delete All */}
             <button
               onClick={deleteSelectedShape}
-              title="Delete (Backspace)"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-red-950/60 hover:bg-red-900/80 text-red-300 hover:text-red-200 transition-colors cursor-pointer"
+              title="Delete Selected Elements (Backspace / Delete)"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-semibold transition-all cursor-pointer shadow-sm shadow-rose-950/40 active:scale-95"
             >
               <Trash2 size={13} />
-              <span>Delete</span>
+              <span>
+                {selectedShapes.length === shapes.length && shapes.length > 1
+                  ? `Delete All (${selectedShapes.length})`
+                  : selectedShapes.length > 1
+                  ? `Delete All (${selectedShapes.length})`
+                  : 'Delete'}
+              </span>
             </button>
           </div>
         )}

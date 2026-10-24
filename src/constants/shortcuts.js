@@ -152,6 +152,20 @@ export const SHORTCUTS = [
     keys: ['⇧', '⌘', 'G'],
   },
   {
+    id: 'edit-bring-forward',
+    category: 'selection',
+    title: 'Bring to Front',
+    description: 'Move selected shapes to the topmost visual z-index layer',
+    keys: [']'],
+  },
+  {
+    id: 'edit-send-backward',
+    category: 'selection',
+    title: 'Send to Back',
+    description: 'Move selected shapes behind all other canvas elements',
+    keys: ['['],
+  },
+  {
     id: 'edit-marquee',
     category: 'selection',
     title: 'Multi-select Marquee',

@@ -9,9 +9,6 @@ import {
   Sparkles,
   LogOut,
   ArrowRight,
-  UserCheck,
-  ShieldAlert,
-  Send,
 } from 'lucide-react';
 import { PEER_COLORS, EMOJI_REACTIONS } from '../../utils/collaboration';
 

@@ -213,7 +213,7 @@ export function Canvas({
       ctx.strokeRect(marquee.x, marquee.y, marquee.width, marquee.height);
       ctx.restore();
     }
-  }, [shapes, currentShape, effectiveSelectedIds, hoveredId, pan, zoom, canvasBg, editingId, marquee, activeTool]);
+  }, [shapes, currentShape, hoveredId, pan, zoom, canvasBg, editingId, marquee, activeTool]);
 
   useEffect(() => {
     let id = requestAnimationFrame(render);
@@ -277,11 +277,32 @@ export function Canvas({
 
   const hitTest = (worldX, worldY) => {
     const { shapes } = R.current;
+    const candidates = [];
     for (let i = shapes.length - 1; i >= 0; i--) {
       const s = shapes[i];
-      if (isPointInShape(worldX, worldY, s)) return s;
+      if (isPointInShape(worldX, worldY, s)) {
+        candidates.push({ shape: s, index: i });
+      }
     }
-    return null;
+    if (candidates.length === 0) return null;
+    if (candidates.length === 1) return candidates[0].shape;
+
+    // Multiple shapes under click: prioritize linear elements and smaller inner shapes
+    candidates.sort((a, b) => {
+      const aIsLinear = ['arrow', 'line', 'pen'].includes(a.shape.type);
+      const bIsLinear = ['arrow', 'line', 'pen'].includes(b.shape.type);
+      if (aIsLinear && !bIsLinear) return -1;
+      if (!aIsLinear && bIsLinear) return 1;
+
+      const areaA = Math.abs((a.shape.width || 40) * (a.shape.height || 40));
+      const areaB = Math.abs((b.shape.width || 40) * (b.shape.height || 40));
+      if (areaA < areaB * 0.65) return -1;
+      if (areaB < areaA * 0.65) return 1;
+
+      return b.index - a.index;
+    });
+
+    return candidates[0].shape;
   };
 
   const commitEdit = useCallback(() => {
@@ -390,9 +411,20 @@ export function Canvas({
       };
       setShapes(prev => [...prev, newShape]);
       setSelectedId(newShape.id);
+      updateSelection([newShape.id]);
       setEditingId(newShape.id);
       setEditingText('');
-      setEditingPos({ left: sx, top: sy, width: 220, height: 36 });
+      setEditingPos({
+        left: sx,
+        top: sy,
+        width: Math.max(220 * zoom, 180),
+        height: Math.max(36 * zoom, 32),
+        fontSize: newShape.fontSize || 16,
+        fontFamily: newShape.fontFamily || 'Inter, sans-serif',
+        textColor: newShape.textColor || newShape.strokeColor || '#1e1e1e',
+        textAlign: newShape.textAlign || 'left',
+        isTextOnly: true,
+      });
       if (!R.current.isToolLocked) setActiveTool(TOOLS.SELECT);
       isDown.current = false;
       setHoveredId(null);
@@ -767,6 +799,11 @@ export function Canvas({
       top: minY * zoom + pan.y + 4,
       width: Math.max(shW * zoom - 8, 80),
       height: Math.max(shH * zoom - 8, 28),
+      fontSize: hit.fontSize || 16,
+      fontFamily: hit.fontFamily || 'Inter, sans-serif',
+      textColor: hit.textColor || hit.strokeColor || '#1e1e1e',
+      textAlign: hit.textAlign || (hit.type === 'text' ? 'left' : 'center'),
+      isTextOnly: hit.type === 'text',
     });
     updateSelection([hit.id]);
   };
@@ -779,15 +816,6 @@ export function Canvas({
 
   const getCursor = () => {
     if (isSpaceState || activeTool === TOOLS.PAN) return 'grab';
-    if (isDown.current && dragMode.current === 'resize' && activeHandle.current) {
-      return hoverCursor;
-    }
-    if (isDown.current && dragMode.current === 'move') {
-      return 'move';
-    }
-    if (isDown.current && dragMode.current === 'marquee') {
-      return 'crosshair';
-    }
     return hoverCursor;
   };
 
@@ -886,19 +914,52 @@ export function Canvas({
       })}
 
       {editingId && editingPos && (
-        <div className="absolute z-50 pointer-events-none" style={{ left: editingPos.left, top: editingPos.top, width: editingPos.width, height: editingPos.height }}>
-          <textarea
-            ref={textareaRef}
-            value={editingText}
-            onChange={(e) => setEditingText(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={handleTextareaKeyDown}
-            placeholder="Type here…"
-            className="pointer-events-auto w-full h-full resize-none outline-none bg-transparent border-none p-1 text-center leading-tight"
-            style={{ font: `600 ${currentStyle.fontSize || 15}px ${currentStyle.fontFamily || 'Inter, sans-serif'}`, color: currentStyle.strokeColor || '#1e1e1e', caretColor: '#6366f1', overflow: 'hidden' }}
-          />
-          <div className="absolute -bottom-7 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-zinc-400 bg-white border border-zinc-200 rounded-lg px-2 py-0.5 shadow-sm select-none">
-            ↵ new line · ⌘↵ done · Esc cancel
+        <div
+          className={`absolute z-50 pointer-events-none flex ${
+            editingPos.isTextOnly ? 'items-start justify-start' : 'items-center justify-center'
+          }`}
+          style={{
+            left: editingPos.left,
+            top: editingPos.top,
+            width: editingPos.width,
+            height: editingPos.height,
+          }}
+        >
+          <div className="relative pointer-events-auto max-w-full flex flex-col items-center">
+            <textarea
+              ref={textareaRef}
+              value={editingText}
+              onChange={(e) => {
+                setEditingText(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              onBlur={commitEdit}
+              onKeyDown={handleTextareaKeyDown}
+              placeholder="Type here…"
+              rows={1}
+              className={`resize-none outline-none bg-transparent border-none p-1 leading-tight ${
+                editingPos.textAlign === 'left'
+                  ? 'text-left'
+                  : editingPos.textAlign === 'right'
+                  ? 'text-right'
+                  : 'text-center'
+              }`}
+              style={{
+                font: `600 ${(editingPos.fontSize || currentStyle.fontSize || 16) * zoom}px ${
+                  editingPos.fontFamily || currentStyle.fontFamily || 'Inter, sans-serif'
+                }`,
+                color: editingPos.textColor || currentStyle.strokeColor || '#1e1e1e',
+                caretColor: '#6366f1',
+                minWidth: Math.min(100, editingPos.width),
+                maxWidth: editingPos.width,
+                minHeight: '28px',
+                overflow: 'hidden',
+              }}
+            />
+            <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] text-zinc-500 bg-white/95 backdrop-blur-md border border-zinc-200/80 rounded-lg px-2.5 py-0.5 shadow-md select-none pointer-events-none z-10">
+              ↵ new line · ⌘↵ done · Esc cancel
+            </div>
           </div>
         </div>
       )}
@@ -921,6 +982,7 @@ export function Canvas({
         resetView={resetView}
         canvasBg={canvasBg}
         containerRef={canvasRef}
+        isInspectorOpen={(selectedIds && selectedIds.length > 0) || Boolean(selectedId)}
       />
     </div>
   );

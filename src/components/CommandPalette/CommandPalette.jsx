@@ -47,7 +47,6 @@ export function CommandPalette({
   onLoadTemplate,
   isDocsOpen,
   setIsDocsOpen,
-  canvasBg,
   setCanvasBg,
   zoomIn,
   zoomOut,
@@ -63,9 +62,12 @@ export function CommandPalette({
   // Focus input when opened
   useEffect(() => {
     if (isOpen) {
-      setQuery('');
-      setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const t = setTimeout(() => {
+        setQuery('');
+        setSelectedIndex(0);
+        inputRef.current?.focus();
+      }, 20);
+      return () => clearTimeout(t);
     }
   }, [isOpen]);
 
@@ -156,11 +158,6 @@ export function CommandPalette({
     );
   }, [allCommands, query]);
 
-  // Adjust selection when query changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
-
   // Handle keyboard navigation inside palette
   useEffect(() => {
     if (!isOpen) return;
@@ -211,7 +208,10 @@ export function CommandPalette({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             placeholder="Type a command, tool, or template..."
             className="flex-1 bg-transparent text-sm text-zinc-900 placeholder:text-zinc-400 outline-none"
           />

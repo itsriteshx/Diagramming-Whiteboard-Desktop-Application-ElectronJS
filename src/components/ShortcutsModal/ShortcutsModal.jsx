@@ -3,8 +3,6 @@ import {
   Search,
   X,
   Keyboard,
-  Sparkles,
-  Command,
   HelpCircle,
 } from 'lucide-react';
 import { SHORTCUT_CATEGORIES, SHORTCUTS } from '../../constants/shortcuts';
@@ -17,9 +15,12 @@ export function ShortcutsModal({ isOpen, onClose }) {
   // Focus search input on open
   useEffect(() => {
     if (isOpen) {
-      setSearchQuery('');
-      setActiveCategory('all');
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const t = setTimeout(() => {
+        setSearchQuery('');
+        setActiveCategory('all');
+        inputRef.current?.focus();
+      }, 20);
+      return () => clearTimeout(t);
     }
   }, [isOpen]);
 

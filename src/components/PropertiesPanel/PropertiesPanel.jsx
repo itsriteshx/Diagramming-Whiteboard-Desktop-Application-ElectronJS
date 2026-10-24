@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import {
   Copy,
   Trash2,
@@ -18,8 +18,7 @@ import {
   X,
   Sliders,
   Pipette,
-  CornerDownRight,
-  Sparkles,
+  CheckSquare,
 } from 'lucide-react';
 import { STROKE_COLORS, FILL_COLORS } from '../../constants/tools';
 
@@ -65,7 +64,7 @@ function SegmentedControl({ options, value, onChange }) {
   );
 }
 
-function ColorPaletteRow({ colors, selected, onChange, transparent = false, label = 'Custom' }) {
+function ColorPaletteRow({ colors, selected, onChange }) {
   const colorInputRef = useRef(null);
 
   return (
@@ -131,6 +130,8 @@ export function PropertiesPanel({
   onAlign,
   onDistribute,
   onClose,
+  onSelectAll,
+  totalShapesCount = 0,
 }) {
   const isMulti = selectedShapes.length > 1;
   const target = selectedShape || selectedShapes[0];
@@ -442,20 +443,41 @@ export function PropertiesPanel({
       </div>
 
       {/* Footer Actions */}
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-zinc-100 bg-zinc-50/50">
-        <button
-          onClick={duplicateSelectedShape}
-          className="h-9 flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-zinc-700 border border-zinc-200 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
-        >
-          <Copy size={13} />
-          <span>Duplicate</span>
-        </button>
+      <div className="flex flex-col gap-2 px-4 py-3 border-t border-zinc-100 bg-zinc-50/50">
+        <div className="flex items-center gap-2">
+          {onSelectAll && selectedShapes.length < totalShapesCount && totalShapesCount > 1 && (
+            <button
+              onClick={onSelectAll}
+              className="h-9 px-2.5 flex items-center justify-center gap-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-[11px] font-medium transition-colors cursor-pointer"
+              title="Select All Elements on Canvas (Cmd+A)"
+            >
+              <CheckSquare size={13} className="text-indigo-600" />
+              <span>Select All</span>
+            </button>
+          )}
+          <button
+            onClick={duplicateSelectedShape}
+            className="h-9 flex-1 flex items-center justify-center gap-1.5 bg-white hover:bg-indigo-50 hover:text-indigo-700 text-zinc-700 border border-zinc-200 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer shadow-2xs"
+            title="Duplicate Selected (Cmd+D)"
+          >
+            <Copy size={13} />
+            <span>Duplicate</span>
+          </button>
+        </div>
+
         <button
           onClick={deleteSelectedShape}
-          className="w-9 h-9 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl transition-colors cursor-pointer"
-          title="Delete Shape"
+          className="h-9 w-full flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 text-rose-600 rounded-xl text-[11px] font-semibold transition-colors cursor-pointer"
+          title="Delete Selected Elements (Backspace / Delete)"
         >
-          <Trash2 size={15} />
+          <Trash2 size={13} />
+          <span>
+            {selectedShapes.length === totalShapesCount && totalShapesCount > 1
+              ? `Delete All Elements (${selectedShapes.length})`
+              : selectedShapes.length > 1
+              ? `Delete All Selected (${selectedShapes.length})`
+              : 'Delete Element (Backspace)'}
+          </span>
         </button>
       </div>
     </aside>

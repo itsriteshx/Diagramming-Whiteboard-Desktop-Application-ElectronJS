@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Menu,
-  BookOpen,
   Download,
   FolderOpen,
   Save,
@@ -17,8 +16,6 @@ import {
   Search,
   Command,
   HelpCircle,
-  X,
-  ChevronRight,
   Zap,
   PanelLeft,
   Users,

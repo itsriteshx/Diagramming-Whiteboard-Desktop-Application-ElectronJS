@@ -11,7 +11,6 @@ import {
   Sparkles,
   Layers,
   CheckCircle2,
-  FileText,
 } from 'lucide-react';
 import { ARCHITECTURE_TEMPLATES } from '../../constants/templates';
 

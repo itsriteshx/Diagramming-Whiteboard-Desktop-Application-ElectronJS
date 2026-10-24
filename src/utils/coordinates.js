@@ -110,13 +110,14 @@ export function getPolygonVertices(shape) {
   if (type === 'star') {
     const cx = x + width / 2;
     const cy = y + height / 2;
-    const outerR = Math.min(Math.abs(width), Math.abs(height)) / 2;
-    const innerR = outerR * 0.4;
+    const rx = Math.abs(width) / 2;
+    const ry = Math.abs(height) / 2;
     const verts = [];
     for (let i = 0; i < 10; i++) {
       const angle = (Math.PI / 5) * i - Math.PI / 2;
-      const r = i % 2 === 0 ? outerR : innerR;
-      verts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+      const rX = i % 2 === 0 ? rx : rx * 0.4;
+      const rY = i % 2 === 0 ? ry : ry * 0.4;
+      verts.push({ x: cx + rX * Math.cos(angle), y: cy + rY * Math.sin(angle) });
     }
     return verts;
   }

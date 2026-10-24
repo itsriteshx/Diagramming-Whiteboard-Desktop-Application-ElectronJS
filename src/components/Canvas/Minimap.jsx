@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import { Compass, ChevronDown, ChevronUp, RotateCcw, Map } from 'lucide-react';
+import { Compass, ChevronDown, RotateCcw } from 'lucide-react';
 
 const MINIMAP_WIDTH = 210;
 const MINIMAP_HEIGHT = 135;
@@ -12,6 +12,7 @@ export function Minimap({
   resetView,
   canvasBg,
   containerRef,
+  isInspectorOpen = false,
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const canvasRef = useRef(null);
@@ -268,7 +269,10 @@ export function Minimap({
 
   if (!isOpen) {
     return (
-      <div className="absolute bottom-5 right-5 z-20 select-none">
+      <div
+        className="absolute bottom-5 z-20 select-none transition-all duration-300 ease-out"
+        style={{ right: isInspectorOpen ? '295px' : '20px' }}
+      >
         <button
           onClick={() => setIsOpen(true)}
           className="flex items-center gap-1.5 px-3 py-2 bg-white/95 hover:bg-white text-zinc-700 hover:text-indigo-600 shadow-[0_8px_30px_rgba(0,0,0,0.08),0_2px_6px_rgba(0,0,0,0.04)] border border-zinc-200/90 rounded-2xl backdrop-blur-md text-xs font-semibold transition-all cursor-pointer group"
@@ -282,7 +286,10 @@ export function Minimap({
   }
 
   return (
-    <div className="absolute bottom-5 right-5 z-20 select-none bg-white/95 border border-zinc-200/90 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+    <div
+      className="absolute bottom-5 z-20 select-none bg-white/95 border border-zinc-200/90 rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] backdrop-blur-md overflow-hidden animate-in fade-in zoom-in-95 duration-150 transition-all duration-300 ease-out"
+      style={{ right: isInspectorOpen ? '295px' : '20px' }}
+    >
       {/* Minimap Header */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-zinc-50/90 border-b border-zinc-100 text-[11px] font-semibold text-zinc-600">
         <div className="flex items-center gap-1.5">

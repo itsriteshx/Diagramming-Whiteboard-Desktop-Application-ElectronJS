@@ -297,6 +297,7 @@ export function useCollaboration({
 
   // Check URL query parameters or session storage on startup
   useEffect(() => {
+    let timer;
     try {
       const params = new URLSearchParams(window.location.search);
       const urlRoom = params.get('room');
@@ -304,13 +305,14 @@ export function useCollaboration({
       const targetRoom = urlRoom || savedRoom;
 
       if (targetRoom) {
-        connectToRoom(targetRoom);
+        timer = setTimeout(() => connectToRoom(targetRoom), 20);
       }
     } catch {
       // Ignore
     }
 
     return () => {
+      if (timer) clearTimeout(timer);
       if (sessionRef.current) {
         sessionRef.current.close();
       }

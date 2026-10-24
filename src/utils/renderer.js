@@ -112,16 +112,17 @@ export function drawStar(ctx, shape) {
   const { x, y, width, height } = shape;
   const cx = x + width / 2;
   const cy = y + height / 2;
-  const outerR = Math.min(Math.abs(width), Math.abs(height)) / 2;
-  const innerR = outerR * 0.4;
+  const rx = Math.abs(width) / 2;
+  const ry = Math.abs(height) / 2;
   const points = 5;
 
   ctx.beginPath();
   for (let i = 0; i < points * 2; i++) {
     const angle = (Math.PI / points) * i - Math.PI / 2;
-    const r = i % 2 === 0 ? outerR : innerR;
-    const px = cx + r * Math.cos(angle);
-    const py = cy + r * Math.sin(angle);
+    const rX = i % 2 === 0 ? rx : rx * 0.4;
+    const rY = i % 2 === 0 ? ry : ry * 0.4;
+    const px = cx + rX * Math.cos(angle);
+    const py = cy + rY * Math.sin(angle);
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
